@@ -1,5 +1,4 @@
 var Crawler = require("crawler");
-var tabletojson = require('tabletojson');
 var url = require('url');
 var lastCourse = null;
 var str_replace = require('str_replace');

@@ -1,0 +1,8 @@
+node:
+  image: node
+  volumes:
+    - .:/usr/src/app
+  working_dir: /usr/src/app
+  entrypoint:
+    - node
+    - index.js
