@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "crawler": "^0.4.3",
+    "mysql": "^2.10.2",
     "str_replace": "^0.1.6"
   }
 }

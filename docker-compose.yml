@@ -7,24 +7,13 @@ mysql:
     - MYSQL_PASSWORD=pmu
   ports:
    - 3406:3306
-crawler:
-  image: node
+app:
+  build: ./docker/php
   volumes:
     - .:/usr/src/app
-  working_dir: /usr/src/app
-  entrypoint:
-    - node
-    - index.js
   links:
     - mysql
-npm:
-  image: node
-  volumes:
-    - .:/usr/src/app
-  working_dir: /usr/src/app
-  entrypoint:
-    - npm
-  command: install
+
 datamysql:
   image: busybox
   volumes:
