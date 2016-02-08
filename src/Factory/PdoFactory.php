@@ -20,6 +20,7 @@ class PdoFactory {
             self::$pdo = new \PDO('mysql:host=' . getenv('MYSQL_PORT_3306_TCP_ADDR') . ';dbname=' . getenv('MYSQL_ENV_MYSQL_DATABASE'),
                                 getenv('MYSQL_ENV_MYSQL_USER'),
                                 getenv('MYSQL_ENV_MYSQL_PASSWORD'));
+            self::$pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
         }
 
         return self::$pdo;

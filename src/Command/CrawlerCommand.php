@@ -4,7 +4,9 @@ namespace Pmu\Command;
 
 use Pmu\Factory\PdoFactory;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Sunra\PhpSimple\HtmlDomParser;
 
@@ -33,7 +35,9 @@ class CrawlerCommand extends Command
         $this
             ->setName('crawler')
             ->setDescription('Crawl result of turf')
-        ;
+            ->addArgument('startDate', InputArgument::OPTIONAL, 'start date', null)
+            ->addArgument('endDate', InputArgument::OPTIONAL, 'end date', null)
+            ->addOption('first', null, InputOption::VALUE_NONE, 'First crawl (Crawl tous les jour depuis 2014-01-01)');
     }
 
     protected function initialize(InputInterface $input, OutputInterface $output)
@@ -46,59 +50,126 @@ class CrawlerCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $date = new \DateTime();
-        $date->setTimestamp(time() - (60*60*24));
+        $timestart = microtime(true);
 
-        $this->crawlResultByDay($date);
+        //set crawl date
+        $hierDate = new \DateTime();
+        $hierDate->setTimestamp(time() - (60*60*24));
+
+        if ($input->getArgument('startDate')) {
+            $startDate = new \DateTime($input->getArgument('startDate'));
+        } else if ($input->getOption('first')) {
+            $startDate = new \DateTime('2014-01-01');
+        } else {
+            $startDate = $hierDate;
+        }
+
+        if ($startDate > $hierDate) {
+            $startDate = $hierDate;
+        }
+
+        if ($input->getArgument('endDate')) {
+            $endDate = new \DateTime($input->getArgument('endDate'));
+        } else {
+            $endDate = $hierDate;
+        }
+
+        if ($endDate > $hierDate) {
+            $endDate = $hierDate;
+        }
+
+
+        $interval = new \DateInterval('P1D');
+        $daterange = new \DatePeriod($startDate, $interval , $endDate);
+
+        foreach($daterange as $date){
+            $this->crawlResultByDay($date);
+        }
+
+        $total = (microtime(true) - $timestart) / 60;
+
+        $this->output->writeln('<info>Crawl terminated in  ' . $total . 'm </info>');
     }
 
     protected function crawlResultByDay(\DateTime $date)
     {
-        $this->output->writeln('<info>Crawl list courses for ' . $date->format('Y-m-d') . '</info>');
-        //get list courses
-        $data = [];
-        $url = sprintf(self::DOMAINE . self::URI_COURSE_DAY, $date->format('d/m/Y'));
+        try {
+            $this->pdo->beginTransaction();
 
-        if ($this->output->isVerbose()) {
-            $this->output->writeln('<comment>' . $url . '</comment>');
+            $this->output->writeln('<info>Crawl list courses for ' . $date->format('Y-m-d') . '</info>');
+
+            //get list courses
+            $data = [];
+            $url = sprintf(self::DOMAINE . self::URI_COURSE_DAY, $date->format('d/m/Y'));
+
+            if ($this->output->isVerbose()) {
+                $this->output->writeln('<comment>' . $url . '</comment>');
+            }
+
+
+            $dom = HtmlDomParser::file_get_html($url);
+            if (!$dom) {
+                sleep(60);
+                $dom = HtmlDomParser::file_get_html($url);
+                if (!$dom) {
+                    throw new \Exception($url . ' not found');
+                }
+            }
+
+            $elems = $dom->find('#colTwo .trOne .btn');
+
+            foreach($elems as $elem) {
+                $rapport = new \StdClass();
+                $rapport->date = $date;
+
+                $href = str_replace(['..', 'partants-'], [self::DOMAINE, 'rapports-'], $elem->href);
+                $this->crawlRapports($href, $rapport);
+            }
+
+            $this->pdo->commit();
+        } catch (Exception $e) {
+            $this->pdo->rollBack();
+            throw $e;
         }
 
-
-        $dom = HtmlDomParser::file_get_html($url);
-        $elems = $dom->find('#colTwo .trOne .btn');
-
-        foreach($elems as $elem) {
-            $rapport = new \StdClass();
-            $rapport->date = $date;
-
-            $href = str_replace(['..', 'partants-'], [self::DOMAINE, 'rapports-'], $elem->href);
-            $this->crawlRapports($href, $rapport);
-
-            var_dump($rapport);
-            break;
-        }
     }
 
     protected function crawlRapports($url, &$rapport)
     {
+        $this->output->writeln('');
+
         if ($this->output->isVerbose()) {
             $this->output->writeln('<comment>' . $url . '</comment>');
         }
 
+        $this->addCourseTurfomaniaId($url, $rapport);
+        if ($this->turfomaniaCourseExists($rapport->turfomaniaId)) {
+            $this->output->writeln('<comment>Course ' . $rapport->turfomaniaId . ' existe deja</comment>');
+            return $this;
+        }
+
         $dom = HtmlDomParser::file_get_html($url);
+        if (!$dom) {
+            sleep(60);
+            $dom = HtmlDomParser::file_get_html($url);
+            if (!$dom) {
+                throw new \Exception($url . ' not found');
+            }
+        }
         $detailCourseInfosDom = $dom->find('#detailCourseInfos', 0);
 
-        $this->addCourseTurfomaniaId($url, $rapport)
-             ->addCourseReunion($detailCourseInfosDom, $rapport)
+        $this->addCourseReunion($detailCourseInfosDom, $rapport)
              ->addTime($detailCourseInfosDom, $rapport)
              ->addHyppodrome($detailCourseInfosDom, $rapport)
              ->addCourseName($detailCourseInfosDom, $rapport)
              ->addCourseCaracteristiques($dom, $rapport);
 
-        if ($this->courseExist($rapport)) {
+        if ($this->courseExists($rapport)) {
             $this->output->writeln('<comment>Course ' . $rapport->turfomaniaId . ' existe deja</comment>');
         } else {
-            $this->createCourse($rapport);
+            $rapport->id = $this->createCourse($rapport);
+
+            $this->addConcurrents($dom, $rapport);
         }
 
         return $this;
@@ -188,6 +259,173 @@ class CrawlerCommand extends Command
         return $this;
     }
 
+    protected function addConcurrents(&$dom, &$rapport)
+    {
+        //Table children #colTwo
+        $concurentListTableDom = array_slice($dom->find('#colTwo table.tableauLine'), 0, 2);
+        foreach ($concurentListTableDom as $concurentsTableDom) {
+            if($concurentsTableDom->parent->id == 'colTwo') {
+
+                //Tr only tbody
+                $concurentsTrListDom = $concurentsTableDom->find('tr');
+                foreach ($concurentsTrListDom as $concurentTrDom) {
+                    if ($concurentTrDom->parent->tag == 'tbody') {
+                        $this->addConcurrent($concurentTrDom, $rapport);
+                    }
+                }
+            }
+        }
+    }
+
+    protected function addConcurrent(&$concurentTrDom, &$rapport)
+    {
+        $concurrent = new \StdClass();
+
+        list($positionDom, $numeroDom, $chevalDom, $jockeyDom, $entraineurDom, $commentaireDom, $coteDom) = $concurentTrDom->find('td');
+
+        if (!$coteDom) {
+            $this->output->writeln('<comment>Course ' . $rapport->turfomaniaId . ' annuler</comment>');
+            return;
+        }
+
+        $concurrent->courseId = $rapport->id;
+        $concurrent->position = $positionDom->innertext;
+        $concurrent->numero = (int)$numeroDom->innertext;
+        $concurrent->cote = (float)$coteDom->innertext ? (float)$coteDom->innertext : null;
+
+        //search cheval
+        $chevalName = $chevalDom->children(0)->children(0)->innertext;
+        if (!preg_match('/_([0-9]+)$/', $chevalDom->children(0)->href, $match)){
+            throw new \Exception('TurfomaniaId du Cheval non trouvé');
+        }
+        $chevalTurfomaniaId = (int)$match[1];
+        $concurrent->chevalId = $this->searchOrCreateCheval($chevalTurfomaniaId, $chevalName);
+        if (!$concurrent->chevalId) {
+            throw new \Exception('Cheval not found');
+        }
+
+        //search jockey
+        $jockeyName = $jockeyDom->children(0)->innertext;
+        if (!preg_match('/idjockey=([0-9]+)$/', $jockeyDom->children(0)->href, $match)){
+            throw new \Exception('TurfomaniaId du jockey non trouvé');
+        }
+        $jockeyTurfomaniaId = (int)$match[1];
+        $concurrent->jockeyId = $this->searchOrCreateJockey($jockeyTurfomaniaId, $jockeyName);
+        if (!$concurrent->jockeyId) {
+            throw new \Exception('Jockey not found');
+        }
+
+        //search jockey
+        $entraineurName = $entraineurDom->children(0)->innertext;
+        if (!preg_match('/identraineur=([0-9]+)$/', $entraineurDom->children(0)->href, $match)){
+            throw new \Exception('TurfomaniaId de l\'entraineur non trouvé');
+        }
+        $entraineurTurfomaniaId = (int)$match[1];
+        $concurrent->entraineurId = $this->searchOrCreateEntraineur($entraineurTurfomaniaId, $entraineurName);
+        if (!$concurrent->entraineurId) {
+            throw new \Exception('Entraineur not found');
+        }
+
+        $this->createConcurrent($concurrent);
+
+    }
+
+    protected function searchOrCreateCheval($turfomaniaId, $name)
+    {
+        //search by turfomania id
+        $req = $this->pdo->prepare('SELECT pmu_cheval_id
+                            FROM pmu_turfomania
+                            WHERE pmu_cheval_id IS NOT NULL
+                            AND pmu_turfomania_id = :turfomaniaId
+                            LIMIT 1');
+        $req->bindParam(':turfomaniaId', $turfomaniaId);
+        $req->execute();
+        $id = $req->fetchColumn();
+
+        if ($id) {
+            return (int)$id;
+        }
+
+        // not found create new cheval
+        $this->output->writeln('<info>Create new cheval "' . $name . '"</info>');
+
+        $req = $this->pdo->prepare('INSERT INTO pmu_cheval (pmu_name) VALUES (:name)');
+        $req->bindParam(':name', $name);
+        $req->execute();
+        $id = $this->pdo->lastInsertId();
+
+        $req = $this->pdo->prepare('INSERT INTO pmu_turfomania (pmu_turfomania_id, pmu_cheval_id) VALUES (:turfomaniaId, :id)');
+        $req->bindParam(':id', $id);
+        $req->bindParam(':turfomaniaId', $turfomaniaId);
+        $req->execute();
+
+        return (int)$id;
+    }
+
+    protected function searchOrCreateEntraineur($turfomaniaId, $name)
+    {
+        //search by turfomania id
+        $req = $this->pdo->prepare('SELECT pmu_entraineur_id
+                            FROM pmu_turfomania
+                            WHERE pmu_entraineur_id IS NOT NULL
+                            AND pmu_turfomania_id = :turfomaniaId
+                            LIMIT 1');
+        $req->bindParam(':turfomaniaId', $turfomaniaId);
+        $req->execute();
+        $id = $req->fetchColumn();
+
+        if ($id) {
+            return (int)$id;
+        }
+
+        // not found create new entraineur
+        $this->output->writeln('<info>Create new entraineur "' . $name . '"</info>');
+
+        $req = $this->pdo->prepare('INSERT INTO pmu_entraineur (pmu_name) VALUES (:name)');
+        $req->bindParam(':name', $name);
+        $req->execute();
+        $id = $this->pdo->lastInsertId();
+
+        $req = $this->pdo->prepare('INSERT INTO pmu_turfomania (pmu_turfomania_id, pmu_entraineur_id) VALUES (:turfomaniaId, :id)');
+        $req->bindParam(':id', $id);
+        $req->bindParam(':turfomaniaId', $turfomaniaId);
+        $req->execute();
+
+        return (int)$id;
+    }
+
+    protected function searchOrCreateJockey($turfomaniaId, $name)
+    {
+        //search by turfomania id
+        $req = $this->pdo->prepare('SELECT pmu_jockey_id
+                            FROM pmu_turfomania
+                            WHERE pmu_jockey_id IS NOT NULL
+                            AND pmu_turfomania_id = :turfomaniaId
+                            LIMIT 1');
+        $req->bindParam(':turfomaniaId', $turfomaniaId);
+        $req->execute();
+        $id = $req->fetchColumn();
+
+        if ($id) {
+            return (int)$id;
+        }
+
+        // not found create new jockey
+        $this->output->writeln('<info>Create new jockey "' . $name . '"</info>');
+
+        $req = $this->pdo->prepare('INSERT INTO pmu_jockey (pmu_name) VALUES (:name)');
+        $req->bindParam(':name', $name);
+        $req->execute();
+        $id = $this->pdo->lastInsertId();
+
+        $req = $this->pdo->prepare('INSERT INTO pmu_turfomania (pmu_turfomania_id, pmu_jockey_id) VALUES (:turfomaniaId, :id)');
+        $req->bindParam(':id', $id);
+        $req->bindParam(':turfomaniaId', $turfomaniaId);
+        $req->execute();
+
+        return (int)$id;
+    }
+
     protected function searchOrCreateHyppodrome($turfomaniaId, $name)
     {
         //search by turfomania id
@@ -201,20 +439,7 @@ class CrawlerCommand extends Command
         $id = $req->fetchColumn();
 
         if ($id) {
-            return $id;
-        }
-
-        //search by name
-        $req = $this->pdo->prepare('SELECT pmu_id
-                            FROM pmu_hyppodrome
-                            WHERE pmu_name LIKE :name
-                            LIMIT 1');
-        $req->bindParam(':name', $name);
-        $req->execute();
-        $id = $req->fetchColumn();
-
-        if ($id) {
-            return $id;
+            return (int)$id;
         }
 
         // not found create new hyppodrome
@@ -230,10 +455,23 @@ class CrawlerCommand extends Command
         $req->bindParam(':turfomaniaId', $turfomaniaId);
         $req->execute();
 
-        return $id;
+        return (int)$id;
     }
 
-    protected function courseExist(&$rapport)
+    protected function turfomaniaCourseExists($turfomaniaId)
+    {
+        $req = $this->pdo->prepare('SELECT count(*)
+                            FROM pmu_turfomania
+                            WHERE pmu_course_id IS NOT NULL
+                            AND pmu_turfomania_id = :turfomaniaId
+                            LIMIT 1');
+        $req->bindParam(':turfomaniaId', $turfomaniaId);
+        $req->execute();
+
+        return ($req->fetchColumn() > 0);
+    }
+
+    protected function courseExists(&$rapport)
     {
         $req = $this->pdo->prepare('SELECT count(*)
                             FROM pmu_course
@@ -264,14 +502,66 @@ class CrawlerCommand extends Command
                               pmu_hyppodrome_id
                             )
                             VALUES (
-
+                              :courseNum,
+                              :reunionNum,
+                              :name,
+                              :date,
+                              :horaire,
+                              :type,
+                              :distance,
+                              :hyppodromeId
                             )');
-        $req->bindParam(':dateCourse', $rapport->date->format('Y-m-d'));
         $req->bindParam(':courseNum', $rapport->courseNum);
         $req->bindParam(':reunionNum', $rapport->reunionNum);
+        $req->bindParam(':name', $rapport->name);
+        $req->bindParam(':date', $rapport->date->format('Y-m-d'));
+        $req->bindParam(':horaire', $rapport->date->format('h:i'));
+        $req->bindParam(':type', $rapport->type);
+        $req->bindParam(':distance', $rapport->distance);
+        $req->bindParam(':hyppodromeId', $rapport->hyppodromeId);
         $req->execute();
-        $count = $req->fetchColumn();
+        $id =  $this->pdo->lastInsertId();
 
-        return ($count > 0);
+        $req = $this->pdo->prepare('INSERT INTO pmu_turfomania (pmu_turfomania_id, pmu_course_id) VALUES (:turfomaniaId, :id)');
+        $req->bindParam(':id', $id);
+        $req->bindParam(':turfomaniaId', $rapport->turfomaniaId);
+        $req->execute();
+
+        return $id;
     }
+
+    protected function createConcurrent(&$concurrent)
+    {
+        $this->output->writeln('<info>Create new concurent ' . $concurrent->numero . ':' . $concurrent->chevalId . ' for course ' . $concurrent->courseId . ' </info>');
+
+        $req = $this->pdo->prepare('INSERT INTO pmu_concurrent(
+                              pmu_course_id,
+                              pmu_cheval_id,
+                              pmu_jockey_id,
+                              pmu_entraineur_id,
+                              pmu_numero,
+                              pmu_position,
+                              pmu_cote
+                            )
+                            VALUES (
+                              :courseId,
+                              :chevalId,
+                              :jockeyId,
+                              :entraineurId,
+                              :numero,
+                              :position,
+                              :cote
+                            )');
+        $req->bindParam(':courseId', $concurrent->courseId);
+        $req->bindParam(':chevalId', $concurrent->chevalId);
+        $req->bindParam(':jockeyId', $concurrent->jockeyId);
+        $req->bindParam(':entraineurId', $concurrent->entraineurId);
+        $req->bindParam(':numero', $concurrent->numero);
+        $req->bindParam(':position', $concurrent->position);
+        $req->bindParam(':cote', $concurrent->cote);
+        $req->execute();
+
+        return $this->pdo->lastInsertId();
+    }
+
 }

@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS `pmu`.`pmu_course` (
   `pmu_date` DATE NOT NULL,
   `pmu_horaire` TIME NOT NULL,
   `pmu_type` VARCHAR(1) NOT NULL,
-  `pmu_distance` INT UNSIGNED NOT NULL,
+  `pmu_distance` INT UNSIGNED NULL,
   `pmu_hyppodrome_id` INT UNSIGNED NOT NULL,
   PRIMARY KEY (`pmu_id`),
   INDEX `pmu_course_identifier` (`pmu_course_num` ASC, `pmu_reunion_num` ASC, `pmu_date` ASC),
