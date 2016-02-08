@@ -11,8 +11,9 @@ USE `pmu` ;
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `pmu`.`pmu_hyppodrome` (
   `pmu_id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `pmu_name` TEXT NOT NULL,
-  PRIMARY KEY (`pmu_id`))
+  `pmu_name` VARCHAR(255) NOT NULL,
+  PRIMARY KEY (`pmu_id`),
+  UNIQUE INDEX `pmu_name_UNIQUE` (`pmu_name` ASC))
 ENGINE = InnoDB;
 
 
@@ -46,8 +47,9 @@ ENGINE = InnoDB;
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `pmu`.`pmu_entraineur` (
   `pmu_id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `pmu_name` TEXT NOT NULL,
-  PRIMARY KEY (`pmu_id`))
+  `pmu_name` VARCHAR(255) NOT NULL,
+  PRIMARY KEY (`pmu_id`),
+  UNIQUE INDEX `pmu_name_UNIQUE` (`pmu_name` ASC))
 ENGINE = InnoDB;
 
 
@@ -56,8 +58,9 @@ ENGINE = InnoDB;
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `pmu`.`pmu_cheval` (
   `pmu_id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `pmu_name` TEXT NOT NULL,
-  PRIMARY KEY (`pmu_id`))
+  `pmu_name` VARCHAR(255) NOT NULL,
+  PRIMARY KEY (`pmu_id`),
+  UNIQUE INDEX `pmu_name_UNIQUE` (`pmu_name` ASC))
 ENGINE = InnoDB;
 
 
@@ -66,15 +69,16 @@ ENGINE = InnoDB;
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `pmu`.`pmu_jockey` (
   `pmu_id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `pmu_name` TEXT NOT NULL,
-  PRIMARY KEY (`pmu_id`))
+  `pmu_name` VARCHAR(255) NOT NULL,
+  PRIMARY KEY (`pmu_id`),
+  UNIQUE INDEX `pmu_name_UNIQUE` (`pmu_name` ASC))
 ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `pmu`.`pmu_concurent`
+-- Table `pmu`.`pmu_concurrent`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `pmu`.`pmu_concurent` (
+CREATE TABLE IF NOT EXISTS `pmu`.`pmu_concurrent` (
   `pmu_id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `pmu_course_id` INT UNSIGNED NOT NULL,
   `pmu_cheval_id` INT UNSIGNED NOT NULL,
