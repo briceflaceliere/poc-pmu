@@ -53,7 +53,8 @@ class CrawlerCommand extends Command
         $timestart = microtime(true);
 
         //set crawl date
-        $hierDate = new \DateTime();
+        $nowDate = new \DateTime();
+        $hierDate =clone $nowDate;
         $hierDate->setTimestamp(time() - (60*60*24));
 
         if ($input->getArgument('startDate')) {
@@ -81,7 +82,6 @@ class CrawlerCommand extends Command
 
         $interval = new \DateInterval('P1D');
         $daterange = new \DatePeriod($startDate, $interval , $endDate);
-
         foreach($daterange as $date){
             $this->crawlResultByDay($date);
         }
@@ -285,7 +285,7 @@ class CrawlerCommand extends Command
 
         if (!$coteDom) {
             $this->output->writeln('<comment>Course ' . $rapport->turfomaniaId . ' annuler</comment>');
-            return;
+            return $this;
         }
 
         $concurrent->courseId = $rapport->id;
@@ -295,6 +295,11 @@ class CrawlerCommand extends Command
 
         //search cheval
         $chevalName = $chevalDom->children(0)->children(0)->innertext;
+        if (empty($chevalName)) {
+            $this->output->writeln('<info>1 cheval non renseigner</info>');
+            return $this;
+        }
+
         if (!preg_match('/_([0-9]+)$/', $chevalDom->children(0)->href, $match)){
             throw new \Exception('TurfomaniaId du Cheval non trouvé');
         }
@@ -346,13 +351,23 @@ class CrawlerCommand extends Command
             return (int)$id;
         }
 
-        // not found create new cheval
-        $this->output->writeln('<info>Create new cheval "' . $name . '"</info>');
-
-        $req = $this->pdo->prepare('INSERT INTO pmu_cheval (pmu_name) VALUES (:name)');
+        $req = $this->pdo->prepare('SELECT pmu_id
+                            FROM pmu_cheval
+                            WHERE pmu_name = :name
+                            LIMIT 1');
         $req->bindParam(':name', $name);
         $req->execute();
-        $id = $this->pdo->lastInsertId();
+        $id = $req->fetchColumn();
+
+        if (!$id) {
+            // not found create new cheval
+            $this->output->writeln('<info>Create new cheval "' . $name . '"</info>');
+
+            $req = $this->pdo->prepare('INSERT INTO pmu_cheval (pmu_name) VALUES (:name)');
+            $req->bindParam(':name', $name);
+            $req->execute();
+            $id = $this->pdo->lastInsertId();
+        }
 
         $req = $this->pdo->prepare('INSERT INTO pmu_turfomania (pmu_turfomania_id, pmu_cheval_id) VALUES (:turfomaniaId, :id)');
         $req->bindParam(':id', $id);
@@ -378,13 +393,23 @@ class CrawlerCommand extends Command
             return (int)$id;
         }
 
-        // not found create new entraineur
-        $this->output->writeln('<info>Create new entraineur "' . $name . '"</info>');
-
-        $req = $this->pdo->prepare('INSERT INTO pmu_entraineur (pmu_name) VALUES (:name)');
+        $req = $this->pdo->prepare('SELECT pmu_id
+                            FROM pmu_entraineur
+                            WHERE pmu_name = :name
+                            LIMIT 1');
         $req->bindParam(':name', $name);
         $req->execute();
-        $id = $this->pdo->lastInsertId();
+        $id = $req->fetchColumn();
+
+        if (!$id) {
+            // not found create new entraineur
+            $this->output->writeln('<info>Create new entraineur "' . $name . '"</info>');
+
+            $req = $this->pdo->prepare('INSERT INTO pmu_entraineur (pmu_name) VALUES (:name)');
+            $req->bindParam(':name', $name);
+            $req->execute();
+            $id = $this->pdo->lastInsertId();
+        }
 
         $req = $this->pdo->prepare('INSERT INTO pmu_turfomania (pmu_turfomania_id, pmu_entraineur_id) VALUES (:turfomaniaId, :id)');
         $req->bindParam(':id', $id);
@@ -410,13 +435,23 @@ class CrawlerCommand extends Command
             return (int)$id;
         }
 
-        // not found create new jockey
-        $this->output->writeln('<info>Create new jockey "' . $name . '"</info>');
-
-        $req = $this->pdo->prepare('INSERT INTO pmu_jockey (pmu_name) VALUES (:name)');
+        $req = $this->pdo->prepare('SELECT pmu_id
+                            FROM pmu_jockey
+                            WHERE pmu_name = :name
+                            LIMIT 1');
         $req->bindParam(':name', $name);
         $req->execute();
-        $id = $this->pdo->lastInsertId();
+        $id = $req->fetchColumn();
+
+        if (!$id) {
+            // not found create new jockey
+            $this->output->writeln('<info>Create new jockey "' . $name . '"</info>');
+
+            $req = $this->pdo->prepare('INSERT INTO pmu_jockey (pmu_name) VALUES (:name)');
+            $req->bindParam(':name', $name);
+            $req->execute();
+            $id = $this->pdo->lastInsertId();
+        }
 
         $req = $this->pdo->prepare('INSERT INTO pmu_turfomania (pmu_turfomania_id, pmu_jockey_id) VALUES (:turfomaniaId, :id)');
         $req->bindParam(':id', $id);
@@ -442,13 +477,24 @@ class CrawlerCommand extends Command
             return (int)$id;
         }
 
-        // not found create new hyppodrome
-        $this->output->writeln('<info>Create new hyppodrome "' . $name . '"</info>');
-
-        $req = $this->pdo->prepare('INSERT INTO pmu_hyppodrome (pmu_name) VALUES (:name)');
+        $req = $this->pdo->prepare('SELECT pmu_id
+                            FROM pmu_hyppodrome
+                            WHERE pmu_name = :name
+                            LIMIT 1');
         $req->bindParam(':name', $name);
         $req->execute();
-        $id = $this->pdo->lastInsertId();
+        $id = $req->fetchColumn();
+
+        if (!$id) {
+            // not found create new hyppodrome
+            $this->output->writeln('<info>Create new hyppodrome "' . $name . '"</info>');
+
+            $req = $this->pdo->prepare('INSERT INTO pmu_hyppodrome (pmu_name) VALUES (:name)');
+            $req->bindParam(':name', $name);
+            $req->execute();
+            $id = $this->pdo->lastInsertId();
+        }
+
 
         $req = $this->pdo->prepare('INSERT INTO pmu_turfomania (pmu_turfomania_id, pmu_hyppodrome_id) VALUES (:turfomaniaId, :id)');
         $req->bindParam(':id', $id);
@@ -532,7 +578,6 @@ class CrawlerCommand extends Command
 
     protected function createConcurrent(&$concurrent)
     {
-        $this->output->writeln('<info>Create new concurent ' . $concurrent->numero . ':' . $concurrent->chevalId . ' for course ' . $concurrent->courseId . ' </info>');
 
         $req = $this->pdo->prepare('INSERT INTO pmu_concurrent(
                               pmu_course_id,
