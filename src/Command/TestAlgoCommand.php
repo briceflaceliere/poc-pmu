@@ -108,6 +108,7 @@ class TestAlgoCommand extends Command
 
         $rowsMois = [];
         $rowsAnnee = [];
+        $rowsJours = [];
 
         foreach ($rapports as $a => $rapportsA) {
             $totalGaniantA = $totalPerdantA = $totalDepenseA = $totalGainA = 0;
@@ -115,11 +116,17 @@ class TestAlgoCommand extends Command
             foreach ($rapportsA as $m => $rapportsM) {
                 $totalGaniant = $totalPerdant = $totalDepense = $totalGain = 0;
 
-                foreach ($rapportsM as $rapportsJ) {
+                foreach ($rapportsM as $j => $rapportsJ) {
                     $totalGaniant += $rapportsJ['Cote']['ganiant'];
                     $totalPerdant += $rapportsJ['Cote']['perdant'];
                     $totalDepense += $rapportsJ['Cote']['depense'];
                     $totalGain += $rapportsJ['Cote']['gain'];
+
+                    $pourcentageVictoires = ($rapportsJ['Cote']['ganiant'] / ($rapportsJ['Cote']['ganiant'] + $rapportsJ['Cote']['perdant'])) * 100;
+                    $gain = $rapportsJ['Cote']['gain'] - $rapportsJ['Cote']['depense'];
+                    $pourcentageGain = ($gain / $rapportsJ['Cote']['depense']) * 100;
+
+                    $rowsJours[] = [$a.'-'.$m.'-'.$j, round($pourcentageVictoires, 2) . '%', round($pourcentageGain, 2) . '%', $gain . '€'];
                 }
 
 
@@ -127,7 +134,7 @@ class TestAlgoCommand extends Command
                 $gain = $totalGain - $totalDepense;
                 $pourcentageGain = ($gain / $totalDepense) * 100;
 
-                $rowsMois[] = [$a.'-'.$m, $pourcentageVictoires . '%', $pourcentageGain . '%', $gain . '€'];
+                $rowsMois[] = [$a.'-'.$m, round($pourcentageVictoires, 2) . '%', round($pourcentageGain, 2) . '%', $gain . '€'];
 
 
                 $totalGaniantA += $totalGaniant;
@@ -140,9 +147,19 @@ class TestAlgoCommand extends Command
             $gain = $totalGain - $totalDepense;
             $pourcentageGain = ($gain / $totalDepense) * 100;
 
-            $rowsAnnee[] = [$a, $pourcentageVictoires . '%', $pourcentageGain . '%', $gain . '€'];
+            $rowsAnnee[] = [$a, round($pourcentageVictoires, 2) . '%', round($pourcentageGain, 2) . '%', $gain . '€'];
 
         }
+
+        $this->output->writeln('');
+        $this->output->writeln('');
+        $this->output->writeln('<info>Resultat par jours</info>');
+        $table = new Table($this->output);
+        $table
+            ->setHeaders(array('Date', '% victoire',  '% Gain', 'Gain en €'))
+            ->setRows($rowsJours);
+        $table->render();
+
         $this->output->writeln('');
         $this->output->writeln('');
         $this->output->writeln('<info>Resultat par mois</info>');
