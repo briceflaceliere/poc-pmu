@@ -12,8 +12,8 @@ use Sunra\PhpSimple\HtmlDomParser;
 
 class CrawlerCommand extends Command
 {
-    const DOMAINE = 'http://www.turfomania.fr';
-    const URI_COURSE_DAY = '/arrivees-rapports/index.php?choixdate=%s';
+    const DOMAINE = 'http://www.turfoo.fr';
+    const URI_COURSE_DAY = '/programmes-courses/%s/';
 
     /**
      * @var InputInterface
@@ -62,23 +62,24 @@ class CrawlerCommand extends Command
         } else if ($input->getOption('first')) {
             $startDate = new \DateTime('2014-01-01');
         } else {
-            $startDate = $hierDate;
+            $startDate = clone $hierDate;
         }
 
         if ($startDate > $hierDate) {
-            $startDate = $hierDate;
+            $startDate = clone $hierDate;
         }
 
         if ($input->getArgument('endDate')) {
             $endDate = new \DateTime($input->getArgument('endDate'));
         } else {
-            $endDate = $hierDate;
+            $endDate = clone $hierDate;
         }
 
         if ($endDate > $hierDate) {
-            $endDate = $hierDate;
+            $endDate = clone $hierDate;
         }
 
+        $endDate->setTime(23, 59, 59);
 
         $interval = new \DateInterval('P1D');
         $daterange = new \DatePeriod($startDate, $interval , $endDate);
@@ -99,31 +100,24 @@ class CrawlerCommand extends Command
             $this->output->writeln('<info>Crawl list courses for ' . $date->format('Y-m-d') . '</info>');
 
             //get list courses
-            $data = [];
-            $url = sprintf(self::DOMAINE . self::URI_COURSE_DAY, $date->format('d/m/Y'));
+            $url = sprintf(self::DOMAINE . self::URI_COURSE_DAY, $date->format('ymd'));
 
             if ($this->output->isVerbose()) {
                 $this->output->writeln('<comment>' . $url . '</comment>');
             }
 
 
-            $dom = HtmlDomParser::file_get_html($url);
-            if (!$dom) {
-                sleep(60);
-                $dom = HtmlDomParser::file_get_html($url);
-                if (!$dom) {
-                    throw new \Exception($url . ' not found');
-                }
-            }
 
-            $elems = $dom->find('#colTwo .trOne .btn');
+            $dom = $this->getDomUrl($url);
+
+
+            $elems = $dom->find('.programme_reunion .specialresultat a');
 
             foreach($elems as $elem) {
                 $rapport = new \StdClass();
                 $rapport->date = $date;
 
-                $href = str_replace(['..', 'partants-'], [self::DOMAINE, 'rapports-'], $elem->href);
-                $this->crawlRapports($href, $rapport);
+                $this->crawlRapports(self::DOMAINE . $elem->href, $rapport);
             }
 
             $this->pdo->commit();
@@ -142,35 +136,28 @@ class CrawlerCommand extends Command
             $this->output->writeln('<comment>' . $url . '</comment>');
         }
 
-        $this->addCourseTurfomaniaId($url, $rapport);
-        if ($this->turfomaniaCourseExists($rapport->turfomaniaId)) {
-            $this->output->writeln('<comment>Course ' . $rapport->turfomaniaId . ' existe deja</comment>');
-            return $this;
-        }
+        $this->addCourseReunion($url, $rapport);
 
-        $dom = HtmlDomParser::file_get_html($url);
-        if (!$dom) {
-            sleep(60);
-            $dom = HtmlDomParser::file_get_html($url);
-            if (!$dom) {
-                throw new \Exception($url . ' not found');
-            }
-        }
-        $detailCourseInfosDom = $dom->find('#detailCourseInfos', 0);
+        //@todo check course exist
 
-        $this->addCourseReunion($detailCourseInfosDom, $rapport)
-             ->addTime($detailCourseInfosDom, $rapport)
-             ->addHyppodrome($detailCourseInfosDom, $rapport)
-             ->addCourseName($detailCourseInfosDom, $rapport)
-             ->addCourseCaracteristiques($dom, $rapport);
 
+        $dom = $this->getDomUrl($url);
+
+        $detailCourseResultatDom = $dom->find('.resultat', 0);
+
+        $this->addCourseCaracteristiques($detailCourseResultatDom, $rapport)
+             ->addHyppodromeAndCourseName($detailCourseResultatDom, $rapport);
+
+        /*
         if ($this->courseExists($rapport)) {
             $this->output->writeln('<comment>Course ' . $rapport->turfomaniaId . ' existe deja</comment>');
         } else {
-            $rapport->id = $this->createCourse($rapport);
+            $rapport->id = $this->createCourse($rapport);*/
 
-            $this->addConcurrents($dom, $rapport);
-        }
+            $this->addConcurrents($detailCourseResultatDom, $rapport);
+       /* }*/
+
+        var_dump($rapport);
 
         return $this;
     }
@@ -185,9 +172,9 @@ class CrawlerCommand extends Command
         return $this;
     }
 
-    protected function addCourseReunion(&$detailCourseInfosDom, &$rapport)
+    protected function addCourseReunion($url, &$rapport)
     {
-        if (!preg_match('/R([0-9]+)C([0-9]+)/i', $detailCourseInfosDom->find('#detailCourseLiveRC', 0)->innertext, $matchs)) {
+        if (!preg_match('/reunion([0-9]+).+course([0-9]+)/i', $url, $matchs)) {
             throw new \Exception('Course et reunion non trouvé');
         }
 
@@ -197,63 +184,59 @@ class CrawlerCommand extends Command
         return $this;
     }
 
-    protected function addTime(&$detailCourseInfosDom, &$rapport)
-    {
-        list($h, $m) = explode('h', $detailCourseInfosDom->find('#detailCourseLiveHeure', 0)->innertext);
-        $rapport->date->setTime($h, $m);
-
-        return $this;
-    }
-
-    protected function addHyppodrome(&$detailCourseInfosDom, &$rapport)
+    protected function addHyppodromeAndCourseName(&$dom, &$rapport)
     {
 
-        $detailCourseLiveHippodromeDom = $detailCourseInfosDom->find('#detailCourseLiveHippodrome a', 0);
-        $name = $detailCourseLiveHippodromeDom->innertext;
-
-        if (!preg_match('/idhippo=([0-9]+)/i', $detailCourseLiveHippodromeDom->href, $matchs)) {
-            throw new \Exception('Hyppodrome : turfomaniaId non trouvé');
-        }
-
-        $hyppodromeId = $this->searchOrCreateHyppodrome((int)$matchs[1], $name);
-        if (!$hyppodromeId) {
-            throw new \Exception('Hyppodrome inconnu');
-        }
-
-        $rapport->hyppodromeId = (int)$hyppodromeId;
-
-        return $this;
-    }
-
-    protected function addCourseName(&$detailCourseInfosDom, &$rapport)
-    {
-        $detailCourseInfosDom->find('#detailCourseAutresCourse', 0)->innertext;
-
-        if (!preg_match('/-\s(.+)/i', $detailCourseInfosDom->find('#detailCourseAutresCourse', 0)->innertext, $matchs)) {
+        $headDom = $dom->find('.head', 0);
+        $courseNameDom = $headDom->find('.course', 0);
+        if ($courseNameDom && !empty($courseNameDom->innertext)) {
+            $rapport->name = $courseNameDom->innertext;
+        } else {
             throw new \Exception('Nom de la course non trouvé');
         }
 
-        $rapport->name = $matchs[1];
+        $lieuDom = $headDom->find('.lieudatecourse', 0);
+        if ($lieuDom && !empty($lieuDom->innertext) && preg_match('/-(.+),/', $lieuDom->innertext, $matchs)) {
+            $rapport->hyppodromeId = $this->searchOrCreateHyppodrome($matchs[1]);
+        } else {
+            throw new \Exception('Nom de l\'hypodrome non trouvé');
+        }
+
+        if (!$rapport->hyppodromeId) {
+            throw new \Exception('Hyppodrome inconnu');
+        }
 
         return $this;
     }
 
+
     protected function addCourseCaracteristiques(&$dom, &$rapport)
     {
-        $caractText = $dom->find('.detailCourseCaract p', 0)->innertext;
+        $infoDom = $dom->find('.infos', 0);
 
         //type
-        if (preg_match('/(Plat|Steeple|Haies|Attelé|Monté)/i', $caractText, $matchs)) {
-            $rapport->type = strtolower(substr($matchs[1], 0, 1));
+        $disiplineDom = $infoDom->find('dfn[title=Discipline]', 0);
+        if ($disiplineDom && !empty($disiplineDom->innertext)) {
+            $rapport->type = strtolower(substr($disiplineDom->innertext, 0, 1));
         } else {
-            $rapport->type = 'p';
+            throw new \Exception('Type introuvable');
         }
 
         //distance
-        if (preg_match('/([0-9]+[\.,]{0,1}[0-9]+)\s{0,1}m/i', $caractText, $matchs)) {
-            $rapport->distance = (int)str_replace('.', '', $matchs[1]);
+        $distanceDom = $infoDom->find('dfn[title=Distance]', 0);
+        if ($distanceDom && !empty($distanceDom->innertext) && preg_match('/([0-9]+)/i', $distanceDom->innertext, $matchs)) {
+            $rapport->distance = (int)$matchs[1];
         } else {
-            $rapport->distance = null;
+            throw new \Exception('Distance introuvable');
+        }
+
+        //time
+        $timeDom = $infoDom->find('dfn[title=Heure]', 0);
+        if ($timeDom && !empty($timeDom->innertext)) {
+            list($h, $m) = explode(':', $timeDom->innertext);
+            $rapport->date->setTime($h, $m, 0);
+        } else {
+            throw new \Exception('Date introuvable');
         }
 
         return $this;
@@ -262,9 +245,14 @@ class CrawlerCommand extends Command
     protected function addConcurrents(&$dom, &$rapport)
     {
         //Table children #colTwo
-        $concurentListTableDom = array_slice($dom->find('#colTwo table.tableauLine'), 0, 2);
-        foreach ($concurentListTableDom as $concurentsTableDom) {
-            if($concurentsTableDom->parent->id == 'colTwo') {
+        $concurentsTrDom = $dom->find('.tablegreyed', 0)->find('.row');
+
+        $concurrentsList = [];
+
+        foreach ($concurentsTrDom as $concurentDom) {
+            $concurrentsList[] = $this->addConcurrent($concurentDom, $rapport);
+
+            /*if($concurentsTableDom->parent->id == 'colTwo') {
 
                 //Tr only tbody
                 $concurentsTrListDom = $concurentsTableDom->find('tr');
@@ -273,7 +261,11 @@ class CrawlerCommand extends Command
                         $this->addConcurrent($concurentTrDom, $rapport);
                     }
                 }
-            }
+            }*/
+        }
+
+        if (empty($concurrentsList)) {
+            throw new \Exception('Aucun concurrents');
         }
     }
 
@@ -331,8 +323,9 @@ class CrawlerCommand extends Command
             throw new \Exception('Entraineur not found');
         }
 
-        $this->createConcurrent($concurrent);
+        //$this->createConcurrent($concurrent);
 
+        return $concurrent;
     }
 
     protected function searchOrCreateCheval($turfomaniaId, $name)
@@ -461,21 +454,9 @@ class CrawlerCommand extends Command
         return (int)$id;
     }
 
-    protected function searchOrCreateHyppodrome($turfomaniaId, $name)
+    protected function searchOrCreateHyppodrome($name)
     {
-        //search by turfomania id
-        $req = $this->pdo->prepare('SELECT pmu_hyppodrome_id
-                            FROM pmu_turfomania
-                            WHERE pmu_hyppodrome_id IS NOT NULL
-                            AND pmu_turfomania_id = :turfomaniaId
-                            LIMIT 1');
-        $req->bindParam(':turfomaniaId', $turfomaniaId);
-        $req->execute();
-        $id = $req->fetchColumn();
-
-        if ($id) {
-            return (int)$id;
-        }
+        $name = strtolower($name);
 
         $req = $this->pdo->prepare('SELECT pmu_id
                             FROM pmu_hyppodrome
@@ -494,12 +475,6 @@ class CrawlerCommand extends Command
             $req->execute();
             $id = $this->pdo->lastInsertId();
         }
-
-
-        $req = $this->pdo->prepare('INSERT INTO pmu_turfomania (pmu_turfomania_id, pmu_hyppodrome_id) VALUES (:turfomaniaId, :id)');
-        $req->bindParam(':id', $id);
-        $req->bindParam(':turfomaniaId', $turfomaniaId);
-        $req->execute();
 
         return (int)$id;
     }
@@ -609,4 +584,34 @@ class CrawlerCommand extends Command
         return $this->pdo->lastInsertId();
     }
 
+
+    protected function getDomUrl($url)
+    {
+        $httpcode = null;
+
+        for ($i = 0; $i < 3; $i++) {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 5.1; rv:31.0) Gecko/20100101 Firefox/31.0');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 30);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+
+            $data = curl_exec($ch);
+            $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            if ($httpcode>=200 && $httpcode<300) {
+                $data = HtmlDomParser::str_get_html($data);
+
+                if (!$data) {
+                    throw new \Exception('Parse content from ' . $url . ' error ');
+                }
+
+                return $data;
+            }
+            sleep(10);
+        }
+
+        throw new \Exception('Get content from ' . $url . ' error ' . $httpcode);
+    }
 }

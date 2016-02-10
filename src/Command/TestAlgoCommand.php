@@ -8,6 +8,7 @@ use Pmu\Factory\PdoFactory;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Helper\Table;
+use Symfony\Component\Console\Helper\TableSeparator;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -68,19 +69,20 @@ class TestAlgoCommand extends Command
         }
 
         if ($startDate > $hierDate) {
-            $startDate = $hierDate;
+            $startDate = clone $hierDate;
         }
 
         if ($input->getArgument('endDate')) {
             $endDate = new \DateTime($input->getArgument('endDate'));
         } else {
-            $endDate = $hierDate;
+            $endDate = clone $hierDate;
         }
 
         if ($endDate > $hierDate) {
-            $endDate = $hierDate;
+            $endDate = clone $hierDate;
         }
 
+        $endDate->setTime(23, 59, 59);
 
         $interval = new \DateInterval('P1D');
         $daterange = new \DatePeriod($startDate, $interval , $endDate);
@@ -89,6 +91,7 @@ class TestAlgoCommand extends Command
 
         $rapports = [];
         foreach($daterange as $date){
+            $progress->setMessage($date->format('Y-m-d'));
             $rapports[$date->format('Y')][$date->format('m')][$date->format('d')] = $this->testAlgo($date);
             $progress->advance();
         }
@@ -114,49 +117,55 @@ class TestAlgoCommand extends Command
             $totalGaniantA = $totalPerdantA = $totalDepenseA = $totalGainA = 0;
 
             foreach ($rapportsA as $m => $rapportsM) {
-                $totalGaniant = $totalPerdant = $totalDepense = $totalGain = 0;
+                $totalGaniantM = $totalPerdantM = $totalDepenseM = $totalGainM = 0;
 
                 foreach ($rapportsM as $j => $rapportsJ) {
-                    $totalGaniant += $rapportsJ['Cote']['ganiant'];
-                    $totalPerdant += $rapportsJ['Cote']['perdant'];
-                    $totalDepense += $rapportsJ['Cote']['depense'];
-                    $totalGain += $rapportsJ['Cote']['gain'];
+                    $totalGaniantM += $rapportsJ['Cote']['ganiant'];
+                    $totalPerdantM += $rapportsJ['Cote']['perdant'];
+                    $totalDepenseM += $rapportsJ['Cote']['depense'];
+                    $totalGainM += $rapportsJ['Cote']['gain'];
 
                     $pourcentageVictoires = ($rapportsJ['Cote']['ganiant'] / ($rapportsJ['Cote']['ganiant'] + $rapportsJ['Cote']['perdant'])) * 100;
                     $gain = $rapportsJ['Cote']['gain'] - $rapportsJ['Cote']['depense'];
                     $pourcentageGain = ($gain / $rapportsJ['Cote']['depense']) * 100;
 
-                    $rowsJours[] = [$a.'-'.$m.'-'.$j, round($pourcentageVictoires, 2) . '%', round($pourcentageGain, 2) . '%', $gain . '€'];
+                    $rowsJours[] = [$a.'-'.$m.'-'.$j, 'Cote',   round($pourcentageVictoires, 2) . '%', $rapportsJ['Cote']['depense']. '€', $rapportsJ['Cote']['gain']. '€', round($pourcentageGain, 2) . '%',  round($gain, 2) . '€'];
+                    $rowsJours[] = new TableSeparator();
                 }
 
 
-                $pourcentageVictoires = ($totalGaniant / ($totalGaniant + $totalPerdant)) * 100;
-                $gain = $totalGain - $totalDepense;
-                $pourcentageGain = ($gain / $totalDepense) * 100;
+                $pourcentageVictoiresM = ($totalGaniantM / ($totalGaniantM + $totalPerdantM)) * 100;
+                $gainM = $totalGainM - $totalDepenseM;
+                $pourcentageGainM = ($gainM / $totalDepenseM) * 100;
 
-                $rowsMois[] = [$a.'-'.$m, round($pourcentageVictoires, 2) . '%', round($pourcentageGain, 2) . '%', $gain . '€'];
+                $rowsMois[] = [$a.'-'.$m, 'Cote', round($pourcentageVictoiresM, 2) . '%', $totalDepenseM. '€', $totalGainM. '€', round($pourcentageGainM, 2) . '%',  round($gainM, 2) . '€'];
+                $rowsMois[] = new TableSeparator();
 
-
-                $totalGaniantA += $totalGaniant;
-                $totalPerdantA += $totalPerdant;
-                $totalDepenseA += $totalDepense;
-                $totalGainA += $totalGain;
+                $totalGaniantA += $totalGaniantM;
+                $totalPerdantA += $totalPerdantM;
+                $totalDepenseA += $totalDepenseM;
+                $totalGainA += $totalGainM;
             }
 
-            $pourcentageVictoires = ($totalGaniant / ($totalGaniant + $totalPerdant)) * 100;
-            $gain = $totalGain - $totalDepense;
-            $pourcentageGain = ($gain / $totalDepense) * 100;
+            $pourcentageVictoiresA = ($totalGaniantA / ($totalGaniantA + $totalPerdantA)) * 100;
+            $gainA = $totalGainA - $totalDepenseA;
+            $pourcentageGainA = ($gainA / $totalDepenseA) * 100;
 
-            $rowsAnnee[] = [$a, round($pourcentageVictoires, 2) . '%', round($pourcentageGain, 2) . '%', $gain . '€'];
+            $rowsAnnee[] = [$a, 'Cote',  round($pourcentageVictoiresA, 2) . '%', $totalDepenseA. '€', $totalGainA. '€', round($pourcentageGainA, 2) . '%',  round($gainA, 2) . '€'];
+            $rowsAnnee[] = new TableSeparator();
 
         }
+
+        array_pop($rowsAnnee);
+        array_pop($rowsMois);
+        array_pop($rowsJours);
 
         $this->output->writeln('');
         $this->output->writeln('');
         $this->output->writeln('<info>Resultat par jours</info>');
         $table = new Table($this->output);
         $table
-            ->setHeaders(array('Date', '% victoire',  '% Gain', 'Gain en €'))
+            ->setHeaders(array('Date', 'Algo', '% victoire', 'Depense', 'Gain', '% Benef', 'Benef en €'))
             ->setRows($rowsJours);
         $table->render();
 
@@ -165,7 +174,7 @@ class TestAlgoCommand extends Command
         $this->output->writeln('<info>Resultat par mois</info>');
         $table = new Table($this->output);
         $table
-            ->setHeaders(array('Date', '% victoire',  '% Gain', 'Gain en €'))
+            ->setHeaders(array('Date', 'Algo', '% victoire', 'Depense', 'Gain', '% Benef', 'Benef en €'))
             ->setRows($rowsMois);
         $table->render();
 
@@ -174,7 +183,7 @@ class TestAlgoCommand extends Command
         $this->output->writeln('<info>Resultat par ans</info>');
         $table = new Table($this->output);
         $table
-            ->setHeaders(array('Date', '% victoire', '% Gain', 'Gain en €'))
+            ->setHeaders(array('Date', 'Algo', '% victoire', 'Depense', 'Gain', '% Benef', 'Benef en €'))
             ->setRows($rowsAnnee);
         $table->render();
     }
