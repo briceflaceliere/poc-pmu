@@ -4,6 +4,7 @@ namespace Pmu\Command;
 
 use Pmu\Factory\PdoFactory;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -83,9 +84,18 @@ class CrawlerCommand extends Command
 
         $interval = new \DateInterval('P1D');
         $daterange = new \DatePeriod($startDate, $interval , $endDate);
+
+        $progress = new ProgressBar($this->output, iterator_count($daterange));
+        $progress->setFormat(' %current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s% <info>%message%</info>');
+
         foreach($daterange as $date){
+            $progress->setMessage($date->format('Y-m-d'));
+            $progress->advance();
             $this->crawlResultByDay($date);
+
         }
+
+        $progress->finish();
 
         $total = (microtime(true) - $timestart) / 60;
 
@@ -96,8 +106,6 @@ class CrawlerCommand extends Command
     {
         try {
             $this->pdo->beginTransaction();
-
-            $this->output->writeln('<info>Crawl list courses for ' . $date->format('Y-m-d') . '</info>');
 
             //get list courses
             $url = sprintf(self::DOMAINE . self::URI_COURSE_DAY, $date->format('ymd'));
@@ -130,7 +138,6 @@ class CrawlerCommand extends Command
 
     protected function crawlRapports($url, &$rapport)
     {
-        $this->output->writeln('');
 
         if ($this->output->isVerbose()) {
             $this->output->writeln('<comment>' . $url . '</comment>');
@@ -154,10 +161,10 @@ class CrawlerCommand extends Command
         } else {
             $rapport->id = $this->createCourse($rapport);*/
 
-            $this->addConcurrents($detailCourseResultatDom, $rapport);
+            //$this->addConcurrents($detailCourseResultatDom, $rapport);
        /* }*/
 
-        var_dump($rapport);
+        //var_dump($rapport);
 
         return $this;
     }
@@ -275,7 +282,7 @@ class CrawlerCommand extends Command
 
         list($positionDom, $numeroDom, $chevalDom, $jockeyDom, $entraineurDom, $commentaireDom, $coteDom) = $concurentTrDom->find('td');
 
-        if (!$coteDom) {
+        if (!$coteDom && $this->output->isVerbose()) {
             $this->output->writeln('<comment>Course ' . $rapport->turfomaniaId . ' annuler</comment>');
             return $this;
         }
@@ -354,8 +361,9 @@ class CrawlerCommand extends Command
 
         if (!$id) {
             // not found create new cheval
-            $this->output->writeln('<info>Create new cheval "' . $name . '"</info>');
-
+            if ($this->output->isVerbose()) {
+                $this->output->writeln('<info>Create new cheval "' . $name . '"</info>');
+            }
             $req = $this->pdo->prepare('INSERT INTO pmu_cheval (pmu_name) VALUES (:name)');
             $req->bindParam(':name', $name);
             $req->execute();
@@ -396,8 +404,9 @@ class CrawlerCommand extends Command
 
         if (!$id) {
             // not found create new entraineur
-            $this->output->writeln('<info>Create new entraineur "' . $name . '"</info>');
-
+            if ($this->output->isVerbose()) {
+                $this->output->writeln('<info>Create new entraineur "' . $name . '"</info>');
+            }
             $req = $this->pdo->prepare('INSERT INTO pmu_entraineur (pmu_name) VALUES (:name)');
             $req->bindParam(':name', $name);
             $req->execute();
@@ -438,8 +447,9 @@ class CrawlerCommand extends Command
 
         if (!$id) {
             // not found create new jockey
-            $this->output->writeln('<info>Create new jockey "' . $name . '"</info>');
-
+            if ($this->output->isVerbose()) {
+                $this->output->writeln('<info>Create new jockey "' . $name . '"</info>');
+            }
             $req = $this->pdo->prepare('INSERT INTO pmu_jockey (pmu_name) VALUES (:name)');
             $req->bindParam(':name', $name);
             $req->execute();
@@ -468,8 +478,9 @@ class CrawlerCommand extends Command
 
         if (!$id) {
             // not found create new hyppodrome
-            $this->output->writeln('<info>Create new hyppodrome "' . $name . '"</info>');
-
+            if ($this->output->isVerbose()) {
+                $this->output->writeln('<info>Create new hyppodrome "' . $name . '"</info>');
+            }
             $req = $this->pdo->prepare('INSERT INTO pmu_hyppodrome (pmu_name) VALUES (:name)');
             $req->bindParam(':name', $name);
             $req->execute();
@@ -510,8 +521,6 @@ class CrawlerCommand extends Command
 
     protected function createCourse(&$rapport)
     {
-        $this->output->writeln('<info>Create new course "' . $rapport->date->format('Y-m-d') . ' - R' . $rapport->reunionNum . 'C'. $rapport->courseNum . ' "</info>');
-
         $req = $this->pdo->prepare('INSERT INTO pmu_course(
                               pmu_course_num,
                               pmu_reunion_num,

@@ -88,12 +88,13 @@ class TestAlgoCommand extends Command
         $daterange = new \DatePeriod($startDate, $interval , $endDate);
 
         $progress = new ProgressBar($this->output, iterator_count($daterange));
+        $progress->setFormat(' %current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s% <info>%message%</info>');
 
         $rapports = [];
         foreach($daterange as $date){
             $progress->setMessage($date->format('Y-m-d'));
-            $rapports[$date->format('Y')][$date->format('m')][$date->format('d')] = $this->testAlgo($date);
             $progress->advance();
+            $rapports[$date->format('Y')][$date->format('m')][$date->format('d')] = $this->testAlgo($date);
         }
 
         $progress->finish();
@@ -214,8 +215,7 @@ class TestAlgoCommand extends Command
 
             $concurrents = $req->fetchAll(\PDO::FETCH_OBJ);
             if (empty($concurrents)) {
-                $this->output->writeln('<info>Aucun concurrents sur la course ' . $course->pmu_id . '</info>');
-                continue;
+                throw new \Exception('Aucun concurrents sur la course ' . $course->pmu_id);
             }
 
             $gagnant = null;
