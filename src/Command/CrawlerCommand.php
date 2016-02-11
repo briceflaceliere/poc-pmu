@@ -193,7 +193,7 @@ class CrawlerCommand extends Command
         if ($courseNameDom && !empty($courseNameDom->innertext)) {
             $rapport->name = $courseNameDom->innertext;
         } else {
-            throw new \Exception('Nom de la course non trouvé');
+            throw new ContinueException('Nom de la course non trouvé');
         }
 
         $lieuDom = $headDom->find('.lieudatecourse', 0);
