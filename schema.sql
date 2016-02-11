@@ -115,50 +115,6 @@ CREATE TABLE IF NOT EXISTS `pmu`.`pmu_concurrent` (
 ENGINE = InnoDB;
 
 
--- -----------------------------------------------------
--- Table `pmu`.`pmu_turfomania`
--- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `pmu`.`pmu_turfomania` (
-  `pmu_turfomania_id` INT UNSIGNED NOT NULL,
-  `pmu_course_id` INT UNSIGNED NULL,
-  `pmu_hyppodrome_id` INT UNSIGNED NULL,
-  `pmu_cheval_id` INT UNSIGNED NULL,
-  `pmu_entraineur_id` INT UNSIGNED NULL,
-  `pmu_jockey_id` INT UNSIGNED NULL,
-  UNIQUE INDEX `idx_turfomania_id` (`pmu_turfomania_id` ASC, `pmu_course_id` ASC, `pmu_hyppodrome_id` ASC, `pmu_cheval_id` ASC, `pmu_entraineur_id` ASC, `pmu_jockey_id` ASC),
-  INDEX `fk_pmu_turfomania_1_idx` (`pmu_course_id` ASC),
-  INDEX `fk_pmu_turfomania_2_idx` (`pmu_hyppodrome_id` ASC),
-  INDEX `fk_pmu_turfomania_3_idx` (`pmu_cheval_id` ASC),
-  INDEX `fk_pmu_turfomania_5_idx` (`pmu_jockey_id` ASC),
-  INDEX `fk_pmu_turfomania_4_idx` (`pmu_entraineur_id` ASC),
-  CONSTRAINT `fk_pmu_turfomania_1`
-    FOREIGN KEY (`pmu_course_id`)
-    REFERENCES `pmu`.`pmu_course` (`pmu_id`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION,
-  CONSTRAINT `fk_pmu_turfomania_2`
-    FOREIGN KEY (`pmu_hyppodrome_id`)
-    REFERENCES `pmu`.`pmu_hyppodrome` (`pmu_id`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION,
-  CONSTRAINT `fk_pmu_turfomania_3`
-    FOREIGN KEY (`pmu_cheval_id`)
-    REFERENCES `pmu`.`pmu_cheval` (`pmu_id`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION,
-  CONSTRAINT `fk_pmu_turfomania_4`
-    FOREIGN KEY (`pmu_entraineur_id`)
-    REFERENCES `pmu`.`pmu_entraineur` (`pmu_id`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION,
-  CONSTRAINT `fk_pmu_turfomania_5`
-    FOREIGN KEY (`pmu_jockey_id`)
-    REFERENCES `pmu`.`pmu_jockey` (`pmu_id`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION)
-ENGINE = InnoDB;
-
-
 SET SQL_MODE=@OLD_SQL_MODE;
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;

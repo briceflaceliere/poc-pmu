@@ -17,6 +17,8 @@ use Sunra\PhpSimple\HtmlDomParser;
 
 class TestAlgoCommand extends Command
 {
+
+
     /**
      * @var InputInterface
      */
@@ -33,14 +35,21 @@ class TestAlgoCommand extends Command
     protected $pdo;
 
     /**
-     * @var AlgoInterface[]
+     * @var AlgoInterface
      */
-    protected $algos = [];
+    protected $algo;
+
+    protected $progress;
+
+    public function __construct(AlgoInterface $algo) {
+        $this->algo = $algo;
+        parent::__construct(null);
+    }
 
     protected function configure()
     {
         $this
-            ->setName('test:algo')
+            ->setName('test:algo:'.$this->algo->getName())
             ->setDescription('Crawl result of turf')
             ->addArgument('startDate', InputArgument::OPTIONAL, 'start date', '2015-01-01')
             ->addArgument('endDate', InputArgument::OPTIONAL, 'end date', null);
@@ -52,7 +61,6 @@ class TestAlgoCommand extends Command
         $this->output = $output;
 
         $this->pdo = PdoFactory::GetConnection();
-        $this->algos[] = new CoteAlgo();
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
@@ -87,17 +95,17 @@ class TestAlgoCommand extends Command
         $interval = new \DateInterval('P1D');
         $daterange = new \DatePeriod($startDate, $interval , $endDate);
 
-        $progress = new ProgressBar($this->output, iterator_count($daterange));
-        $progress->setFormat(' %current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s% <info>%message%</info>');
+        $this->progress = new ProgressBar($this->output, iterator_count($daterange));
+        $this->progress->setFormat(' %current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s% <info>%message%</info>');
 
         $rapports = [];
         foreach($daterange as $date){
-            $progress->setMessage($date->format('Y-m-d'));
-            $progress->advance();
+            $this->progress->setMessage($date->format('Y-m-d'));
+            $this->progress->advance();
             $rapports[$date->format('Y')][$date->format('m')][$date->format('d')] = $this->testAlgo($date);
         }
 
-        $progress->finish();
+        $this->progress->finish();
 
         $this->formatRapports($rapports);
 
@@ -191,9 +199,10 @@ class TestAlgoCommand extends Command
 
     protected function testAlgo(\DateTime $date)
     {
+        //create base rapport
         $rapport = [];
-        foreach ($this->algos as $algo) {
-            $rapport[$algo->getName()] = [
+        foreach ([$date->format('Y-m-d'), $date->format('Y-m'), $date->format('d')] as $rapportType) {
+            $rapport[$rapportType] = [
                 'ganiant' => 0,
                 'perdant' => 0,
                 'depense' => 0,
@@ -201,13 +210,16 @@ class TestAlgoCommand extends Command
             ];
         }
 
-
         $req = $this->pdo->prepare('SELECT * FROM pmu_course WHERE pmu_date = :date');
         $req->bindParam(':date', $date->format('Y-m-d'));
         $req->execute();
 
         $courses = $req->fetchAll(\PDO::FETCH_OBJ);
         foreach ($courses as $course) {
+
+
+            $this->progress->setMessage($date->format('Y-m-d') . ' R' . $course->pmu_reunion_num . 'C' . $course->pmu_course_num);
+            $this->progress->display();
 
             $req = $this->pdo->prepare('SELECT * FROM pmu_concurrent WHERE pmu_course_id = :courseId ORDER BY pmu_position ASC');
             $req->bindParam(':courseId', $course->pmu_id);
@@ -233,6 +245,7 @@ class TestAlgoCommand extends Command
 
             //recup donnée
             foreach ($this->algos as $algo) {
+
                 $rapport[$algo->getName()]['depense']++;
 
                 $results = $algo->byScore($course, $concurrents);

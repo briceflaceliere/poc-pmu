@@ -12,5 +12,5 @@ use Symfony\Component\Console\Application;
 
 $application = new Application('PMU POC', '0.1');
 $application->add(new CrawlerCommand());
-$application->add(new TestAlgoCommand());
+$application->add(new TestAlgoCommand(new \Pmu\Algo\CoteAlgo()));
 $application->run();

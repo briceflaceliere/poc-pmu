@@ -14,7 +14,7 @@ class CoteAlgo implements AlgoInterface {
 
     public function getName()
     {
-        return 'Cote';
+        return 'cote';
     }
 
     public function byNumero($course, $concurrents)
