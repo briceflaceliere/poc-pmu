@@ -85,7 +85,7 @@ class CrawlerCommand extends Command
         $daterange = new \DatePeriod($startDate, $interval , $endDate);
 
         $this->progress = new ProgressBar($this->output, iterator_count($daterange));
-        $this->progress->setFormat(' %current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s% <info>%message%</info>');
+        $this->progress->setFormat(' %current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s% <info>%message%</info>' . "\n");
 
         foreach($daterange as $date){
             $this->progress->setMessage($date->format('Y-m-d'));

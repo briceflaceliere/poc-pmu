@@ -53,8 +53,9 @@ class CoteAlgo implements AlgoInterface {
 
     public function getWinner($course, $concurrents)
     {
-        $pos1 = array_pop($this->byScore($course, $concurrents));
-        $pos2 = array_pop($this->byScore($course, $concurrents));
+        $byScore = $this->byScore($course, $concurrents);
+        $pos1 = array_pop($byScore);
+        $pos2 = array_pop($byScore);
 
         if ($pos1->score == $pos2->score) {
             throw new ContinueException('Impossible de determiné avec précision le 1er de la course (1er => ' . $pos1->score . ' | 2eme => ' . $pos2->score . ')');

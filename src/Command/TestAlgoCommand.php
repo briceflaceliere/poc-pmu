@@ -96,7 +96,7 @@ class TestAlgoCommand extends Command
         $daterange = new \DatePeriod($startDate, $interval , $endDate);
 
         $this->progress = new ProgressBar($this->output, iterator_count($daterange));
-        $this->progress->setFormat(' %current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s% <info>%message%</info>');
+        $this->progress->setFormat(' %current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s% <info>%message%</info>' . "\n");
 
         $rapports = ['D' => [], 'M' => [], 'Y' => []];
         foreach($daterange as $date){
@@ -179,15 +179,14 @@ class TestAlgoCommand extends Command
             //generate rapport
             try {
                 $algoGagant = $this->algo->getWinner($course, $concurrents);
+
+                if ($algoGagant->numero == $gagnant->pmu_numero) {
+                    $this->addToRapport($date, 1, 0, 1, $gagnant->pmu_cote, $rapports);
+                } else {
+                    $this->addToRapport($date, 0, 1, 1, 0, $rapports);
+                }
             } catch (ContinueException $e) {
                 $this->output->writeln('<info>' . $e->getMessage() . '</info>');
-            }
-
-
-            if ($algoGagant->numero == $gagnant->pmu_numero) {
-                $this->addToRapport($date, 1, 0, 1, $gagnant->pmu_cote, $rapports);
-            } else {
-                $this->addToRapport($date, 0, 1, 1, 0, $rapports);
             }
         }
 
