@@ -66,7 +66,11 @@ class CoteAlgo implements AlgoInterface {
 
     protected function getScore($course, $concurent)
     {
+        $score = $concurent->pmu_cote != null ? -($concurent->pmu_cote*100) : -10000;
 
-        return $concurent->pmu_cote != null ? -($concurent->pmu_cote*100) : -10000;
+        if ($score == 0){
+            $score = -999;
+        }
+        return $score;
     }
 }
