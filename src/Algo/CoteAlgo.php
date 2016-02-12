@@ -9,6 +9,8 @@
 namespace Pmu\Algo;
 
 
+use Pmu\Command\ContinueException;
+
 class CoteAlgo implements AlgoInterface {
 
 
@@ -45,7 +47,20 @@ class CoteAlgo implements AlgoInterface {
             return ($a->score < $b->score) ? -1 : 1;
         });
 
+
         return $results;
+    }
+
+    public function getWinner($course, $concurrents)
+    {
+        $pos1 = array_pop($this->byScore($course, $concurrents));
+        $pos2 = array_pop($this->byScore($course, $concurrents));
+
+        if ($pos1->score == $pos2->score) {
+            throw new ContinueException('Impossible de determiné avec précision le 1er de la course (1er => ' . $pos1->score . ' | 2eme => ' . $pos2->score . ')');
+        }
+
+        return $pos1;
     }
 
     protected function getScore($course, $concurent)

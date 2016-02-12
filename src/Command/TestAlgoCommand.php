@@ -51,7 +51,7 @@ class TestAlgoCommand extends Command
         $this
             ->setName('test:algo:'.$this->algo->getName())
             ->setDescription('Crawl result of turf')
-            ->addArgument('startDate', InputArgument::OPTIONAL, 'start date', '2015-01-01')
+            ->addArgument('startDate', InputArgument::OPTIONAL, 'start date', '2014-01-01')
             ->addArgument('endDate', InputArgument::OPTIONAL, 'end date', null);
     }
 
@@ -98,11 +98,11 @@ class TestAlgoCommand extends Command
         $this->progress = new ProgressBar($this->output, iterator_count($daterange));
         $this->progress->setFormat(' %current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s% <info>%message%</info>');
 
-        $rapports = [];
+        $rapports = ['D' => [], 'M' => [], 'Y' => []];
         foreach($daterange as $date){
             $this->progress->setMessage($date->format('Y-m-d'));
             $this->progress->advance();
-            $rapports[$date->format('Y')][$date->format('m')][$date->format('d')] = $this->testAlgo($date);
+            $this->testAlgo($date, $rapports);
         }
 
         $this->progress->finish();
@@ -116,100 +116,32 @@ class TestAlgoCommand extends Command
 
     protected function formatRapports(&$rapports)
     {
+        foreach ($rapports as $type => $data) {
+            $rows = [];
 
+            foreach ($data as $date => $rapport) {
+                $pourcentageVictoires =  round(($rapport['ganiant'] / ($rapport['ganiant'] + $rapport['perdant'])) * 100, 2);
+                $benef = round($rapport['gain'] - $rapport['depense'], 2);
+                $pourcentageBenef = round(($benef / $rapport['depense']) * 100, 2);
 
-        $rowsMois = [];
-        $rowsAnnee = [];
-        $rowsJours = [];
+                $rows[] = [$date, $pourcentageVictoires. '%', $rapport['depense']. '€', $rapport['gain']. '€', $pourcentageBenef . '%',  $benef . '€'];
 
-        foreach ($rapports as $a => $rapportsA) {
-            $totalGaniantA = $totalPerdantA = $totalDepenseA = $totalGainA = 0;
-
-            foreach ($rapportsA as $m => $rapportsM) {
-                $totalGaniantM = $totalPerdantM = $totalDepenseM = $totalGainM = 0;
-
-                foreach ($rapportsM as $j => $rapportsJ) {
-                    $totalGaniantM += $rapportsJ['Cote']['ganiant'];
-                    $totalPerdantM += $rapportsJ['Cote']['perdant'];
-                    $totalDepenseM += $rapportsJ['Cote']['depense'];
-                    $totalGainM += $rapportsJ['Cote']['gain'];
-
-                    $pourcentageVictoires = ($rapportsJ['Cote']['ganiant'] / ($rapportsJ['Cote']['ganiant'] + $rapportsJ['Cote']['perdant'])) * 100;
-                    $gain = $rapportsJ['Cote']['gain'] - $rapportsJ['Cote']['depense'];
-                    $pourcentageGain = ($gain / $rapportsJ['Cote']['depense']) * 100;
-
-                    $rowsJours[] = [$a.'-'.$m.'-'.$j, 'Cote',   round($pourcentageVictoires, 2) . '%', $rapportsJ['Cote']['depense']. '€', $rapportsJ['Cote']['gain']. '€', round($pourcentageGain, 2) . '%',  round($gain, 2) . '€'];
-                    $rowsJours[] = new TableSeparator();
-                }
-
-
-                $pourcentageVictoiresM = ($totalGaniantM / ($totalGaniantM + $totalPerdantM)) * 100;
-                $gainM = $totalGainM - $totalDepenseM;
-                $pourcentageGainM = ($gainM / $totalDepenseM) * 100;
-
-                $rowsMois[] = [$a.'-'.$m, 'Cote', round($pourcentageVictoiresM, 2) . '%', $totalDepenseM. '€', $totalGainM. '€', round($pourcentageGainM, 2) . '%',  round($gainM, 2) . '€'];
-                $rowsMois[] = new TableSeparator();
-
-                $totalGaniantA += $totalGaniantM;
-                $totalPerdantA += $totalPerdantM;
-                $totalDepenseA += $totalDepenseM;
-                $totalGainA += $totalGainM;
             }
 
-            $pourcentageVictoiresA = ($totalGaniantA / ($totalGaniantA + $totalPerdantA)) * 100;
-            $gainA = $totalGainA - $totalDepenseA;
-            $pourcentageGainA = ($gainA / $totalDepenseA) * 100;
-
-            $rowsAnnee[] = [$a, 'Cote',  round($pourcentageVictoiresA, 2) . '%', $totalDepenseA. '€', $totalGainA. '€', round($pourcentageGainA, 2) . '%',  round($gainA, 2) . '€'];
-            $rowsAnnee[] = new TableSeparator();
-
+            $this->output->writeln('');
+            $this->output->writeln('');
+            $typeName = ['M' => 'Mois', 'D' => 'Jours', 'Y' => 'Années'];
+            $this->output->writeln('<info>Resultat par ' . $typeName[$type] . '</info>');
+            $table = new Table($this->output);
+            $table
+                ->setHeaders(array('Date', '% victoire', 'Depense', 'Gain', '% Benef', 'Benef en €'))
+                ->setRows($rows);
+            $table->render();
         }
-
-        array_pop($rowsAnnee);
-        array_pop($rowsMois);
-        array_pop($rowsJours);
-
-        $this->output->writeln('');
-        $this->output->writeln('');
-        $this->output->writeln('<info>Resultat par jours</info>');
-        $table = new Table($this->output);
-        $table
-            ->setHeaders(array('Date', 'Algo', '% victoire', 'Depense', 'Gain', '% Benef', 'Benef en €'))
-            ->setRows($rowsJours);
-        $table->render();
-
-        $this->output->writeln('');
-        $this->output->writeln('');
-        $this->output->writeln('<info>Resultat par mois</info>');
-        $table = new Table($this->output);
-        $table
-            ->setHeaders(array('Date', 'Algo', '% victoire', 'Depense', 'Gain', '% Benef', 'Benef en €'))
-            ->setRows($rowsMois);
-        $table->render();
-
-        $this->output->writeln('');
-        $this->output->writeln('');
-        $this->output->writeln('<info>Resultat par ans</info>');
-        $table = new Table($this->output);
-        $table
-            ->setHeaders(array('Date', 'Algo', '% victoire', 'Depense', 'Gain', '% Benef', 'Benef en €'))
-            ->setRows($rowsAnnee);
-        $table->render();
     }
 
-    protected function testAlgo(\DateTime $date)
+    protected function testAlgo(\DateTime $date, &$rapports)
     {
-        //create base rapport
-        $rapport = [];
-        foreach ([$date->format('Y-m-d'), $date->format('Y-m'), $date->format('d')] as $rapportType) {
-            $rapport[$rapportType] = [
-                'ganiant' => 0,
-                'perdant' => 0,
-                'depense' => 0,
-                'gain'    => 0,
-            ];
-        }
-
         $req = $this->pdo->prepare('SELECT * FROM pmu_course WHERE pmu_date = :date');
         $req->bindParam(':date', $date->format('Y-m-d'));
         $req->execute();
@@ -238,31 +170,46 @@ class TestAlgoCommand extends Command
                 }
             }
 
-            if ($gagnant == null) {
+            if (!$gagnant) {
                 $this->output->writeln('<info>Aucun gagniant sur la course ' . $course->pmu_id . '</info>');
                 continue;
             }
 
-            //recup donnée
-            foreach ($this->algos as $algo) {
 
-                $rapport[$algo->getName()]['depense']++;
+            //generate rapport
+            try {
+                $algoGagant = $this->algo->getWinner($course, $concurrents);
+            } catch (ContinueException $e) {
+                $this->output->writeln('<info>' . $e->getMessage() . '</info>');
+            }
 
-                $results = $algo->byScore($course, $concurrents);
 
-                $algoGagant = end($results);
-
-                if ($algoGagant->numero == $gagnant->pmu_numero) {
-                    $rapport[$algo->getName()]['ganiant']++;
-                    $rapport[$algo->getName()]['gain'] += $gagnant->pmu_cote;
-                } else {
-                    $rapport[$algo->getName()]['perdant']++;
-                }
+            if ($algoGagant->numero == $gagnant->pmu_numero) {
+                $this->addToRapport($date, 1, 0, 1, $gagnant->pmu_cote, $rapports);
+            } else {
+                $this->addToRapport($date, 0, 1, 1, 0, $rapports);
             }
         }
 
-        return $rapport;
+        return $this;
 
+    }
+
+    protected function addToRapport(\DateTime $date, $gagniant, $perdant, $depense, $gain, &$rapports)
+    {
+        $dateDayKey = $date->format('Y-m-d');
+        $dateMouthKey = $date->format('Y-m');
+        $dateYearKey = $date->format('Y');
+
+        foreach (['D' => $dateDayKey, 'M' => $dateMouthKey, 'Y' => $dateYearKey] as $rapportType => $rapportDate) {
+            if (!isset($rapports[$rapportType][$rapportDate])) {
+                $rapports[$rapportType][$rapportDate] = ['ganiant' => 0, 'perdant' => 0, 'depense' => 0, 'gain' => 0];
+            }
+            $rapports[$rapportType][$rapportDate]['ganiant'] += $gagniant;
+            $rapports[$rapportType][$rapportDate]['perdant'] += $perdant;
+            $rapports[$rapportType][$rapportDate]['depense'] += $depense;
+            $rapports[$rapportType][$rapportDate]['gain'] += $gain;
+        }
     }
 
 

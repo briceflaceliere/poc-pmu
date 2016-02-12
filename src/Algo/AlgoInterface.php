@@ -16,4 +16,6 @@ interface AlgoInterface {
     public function byNumero($course, $concurent);
 
     public function byScore($course, $concurent);
+
+    public function getWinner($course, $concurent);
 } 
