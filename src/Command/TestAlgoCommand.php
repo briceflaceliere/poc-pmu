@@ -96,7 +96,7 @@ class TestAlgoCommand extends Command
         $daterange = new \DatePeriod($startDate, $interval , $endDate);
 
         $this->progress = new ProgressBar($this->output, iterator_count($daterange));
-        $this->progress->setFormat(' %current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s% <info>%message%</info>');
+        $this->progress->setFormat(' %current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s% <info>%message%</info>    ');
 
         $rapports = ['D' => [], 'M' => [], 'Y' => [], 'countCourses' => 0, 'excludeCourses' => 0, 'winCourses' => 0, 'winCoursesNullCote' => 0];
         foreach($daterange as $date){

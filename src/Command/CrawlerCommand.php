@@ -54,7 +54,7 @@ class CrawlerCommand extends Command
     protected function initialize(InputInterface $input, OutputInterface $output)
     {
         $this->progress = new ProgressBar($output);
-        $this->progress->setFormat(' %current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s% <info>%message%</info>');
+        $this->progress->setFormat(' %current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s% <info>%message%</info>   ');
 
 
         $this->input = $input;
