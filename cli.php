@@ -11,6 +11,7 @@ use Pmu\Command\TestAlgoCommand;
 use Symfony\Component\Console\Application;
 
 $application = new Application('PMU POC', '0.1');
-$application->add(new CrawlerCommand());
+$application->add(new CrawlerCommand(new \Pmu\Crawler\GenybetCrawler()));
 $application->add(new TestAlgoCommand(new \Pmu\Algo\CoteAlgo()));
+$application->add(new TestAlgoCommand(new \Pmu\Algo\MusiqueAlgo()));
 $application->run();

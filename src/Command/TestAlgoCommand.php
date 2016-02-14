@@ -96,9 +96,9 @@ class TestAlgoCommand extends Command
         $daterange = new \DatePeriod($startDate, $interval , $endDate);
 
         $this->progress = new ProgressBar($this->output, iterator_count($daterange));
-        $this->progress->setFormat(' %current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s% <info>%message%</info>' . "\n");
+        $this->progress->setFormat(' %current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s% <info>%message%</info>');
 
-        $rapports = ['D' => [], 'M' => [], 'Y' => []];
+        $rapports = ['D' => [], 'M' => [], 'Y' => [], 'countCourses' => 0, 'excludeCourses' => 0, 'winCourses' => 0, 'winCoursesNullCote' => 0];
         foreach($daterange as $date){
             $this->progress->setMessage($date->format('Y-m-d'));
             $this->progress->advance();
@@ -118,26 +118,32 @@ class TestAlgoCommand extends Command
     {
         foreach ($rapports as $type => $data) {
             $rows = [];
+            if (in_array($type, ['M', 'D', 'Y'])) {
+                foreach ($data as $date => $rapport) {
+                    $pourcentageVictoires = round(($rapport['ganiant'] / ($rapport['ganiant'] + $rapport['perdant'])) * 100, 2);
+                    $benef = round($rapport['gain'] - $rapport['depense'], 2);
+                    $pourcentageBenef = round(($benef / $rapport['depense']) * 100, 2);
 
-            foreach ($data as $date => $rapport) {
-                $pourcentageVictoires =  round(($rapport['ganiant'] / ($rapport['ganiant'] + $rapport['perdant'])) * 100, 2);
-                $benef = round($rapport['gain'] - $rapport['depense'], 2);
-                $pourcentageBenef = round(($benef / $rapport['depense']) * 100, 2);
+                    $rows[] = [$date, $pourcentageVictoires . '%', $rapport['depense'] . '€', $rapport['gain'] . '€', $pourcentageBenef . '%', $benef . '€'];
 
-                $rows[] = [$date, $pourcentageVictoires. '%', $rapport['depense']. '€', $rapport['gain']. '€', $pourcentageBenef . '%',  $benef . '€'];
+                }
 
+                $this->output->writeln('');
+                $this->output->writeln('');
+                $typeName = ['M' => 'Mois', 'D' => 'Jours', 'Y' => 'Années'];
+                $this->output->writeln('<info>Resultat par ' . $typeName[$type] . '</info>');
+                $table = new Table($this->output);
+                $table
+                    ->setHeaders(array('Date', '% victoire', 'Depense', 'Gain', '% Benef', 'Benef en €'))
+                    ->setRows($rows);
+                $table->render();
             }
-
-            $this->output->writeln('');
-            $this->output->writeln('');
-            $typeName = ['M' => 'Mois', 'D' => 'Jours', 'Y' => 'Années'];
-            $this->output->writeln('<info>Resultat par ' . $typeName[$type] . '</info>');
-            $table = new Table($this->output);
-            $table
-                ->setHeaders(array('Date', '% victoire', 'Depense', 'Gain', '% Benef', 'Benef en €'))
-                ->setRows($rows);
-            $table->render();
         }
+
+        $this->output->writeln('');
+        $this->output->writeln('');
+        $this->output->writeln('<info>Courses gagniante sans cote : ' . $rapports['winCoursesNullCote'] . '/' . $rapports['winCourses'] . ' (' . round(($rapports['winCoursesNullCote'] / $rapports['winCourses']) * 100, 2). '%)</info>');
+        $this->output->writeln('<info>Courses exclus : ' . $rapports['excludeCourses'] . '/' . $rapports['countCourses'] . ' (' . round(($rapports['excludeCourses'] / $rapports['countCourses']) * 100, 2). '%)</info>');
     }
 
     protected function testAlgo(\DateTime $date, &$rapports)
@@ -170,23 +176,28 @@ class TestAlgoCommand extends Command
                 }
             }
 
-            if (!$gagnant) {
-                $this->output->writeln('<info>Aucun gagniant sur la course ' . $course->pmu_id . '</info>');
-                continue;
-            }
-
-
             //generate rapport
             try {
+                $rapports['countCourses']++;
+
+                if (!$gagnant) {
+                    throw new ContinueException('Aucun gagniant sur la course ' . $course->pmu_id);
+                }
+
                 $algoGagant = $this->algo->getWinner($course, $concurrents);
 
                 if ($algoGagant->numero == $gagnant->pmu_numero) {
+                    $rapports['winCourses']++;
+                    if ( $gagnant->pmu_cote <= 1 ) {
+                        $rapports['winCoursesNullCote']++;
+                    }
                     $this->addToRapport($date, 1, 0, 1, $gagnant->pmu_cote, $rapports);
                 } else {
                     $this->addToRapport($date, 0, 1, 1, 0, $rapports);
                 }
             } catch (ContinueException $e) {
-                $this->output->writeln('<info>' . $e->getMessage() . '</info>');
+                $rapports['excludeCourses']++;
+                $this->output->writeln("\n".'<comment>' . $e->getMessage() . '</comment>');
             }
         }
 
