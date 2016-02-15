@@ -127,7 +127,6 @@ class CrawlerCommand extends Command
             return new \DateTime('2014-01-01');
         } else {
             $date = new \DateTime($date);
-            $date->add(new \DateInterval('P1D'));
             return $date;
         }
 

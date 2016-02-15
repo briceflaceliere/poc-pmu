@@ -22,53 +22,48 @@ class GenybetCrawler extends AbstractCrawler
 
     public function crawlResultByDay(\DateTime $date)
     {
-        try {
-            $this->pdo->beginTransaction();
 
-            //get list courses
-            $url = sprintf(self::DOMAINE . self::URI_COURSE_DAY, $date->format('d-m-Y'));
+        //get list courses
+        $url = sprintf(self::DOMAINE . self::URI_COURSE_DAY, $date->format('d-m-Y'));
 
-            if ($this->output->isVerbose()) {
-                $this->output->writeln('<comment>' . $url . '</comment>');
-            }
-
-            $dom = $this->getDomUrl($url);
-
-            $elems = $dom->find('#programme .bloc-reunion');
-
-            foreach($elems as $elem) {
-                $rapport = new \StdClass();
-                $rapport->date = $date;
-
-                $tableContainerDom = $elem->find('.table-container', 0);
-                if (preg_match('/reunion-([0-9]+)/', $tableContainerDom->id, $matchs)) {
-                    $rapport->reunionNum = (int)$matchs[1];
-                } else {
-                    throw new \Exception('Num reunion non trouvé');
-                }
-
-                $trListDom = $tableContainerDom->find('table tr');
-                foreach($trListDom as $trDom) {
-                    if($trDom->parent->tag == 'tbody') {
-                        $rapportCourse = clone $rapport;
-                        $this->addCourseMainInformation($trDom, $rapportCourse);
-
-                        try{
-                            $this->crawlRapports(self::DOMAINE . $rapportCourse->url, $rapportCourse);
-                        } catch (ContinueException $e){
-                            $this->output->writeln('<info>' . $e->getMessage() . '</info>');
-                        }
-                    }
-                }
-
-            }
-
-            $this->pdo->commit();
-        } catch (\Exception $e) {
-            $this->pdo->rollBack();
-            throw $e;
+        if ($this->output->isVerbose()) {
+            $this->output->writeln('<comment>' . $url . '</comment>');
         }
 
+        $dom = $this->getDomUrl($url);
+
+        $elems = $dom->find('#programme .bloc-reunion');
+
+        foreach($elems as $elem) {
+            $rapport = new \StdClass();
+            $rapport->date = $date;
+
+            $tableContainerDom = $elem->find('.table-container', 0);
+            if (preg_match('/reunion-([0-9]+)/', $tableContainerDom->id, $matchs)) {
+                $rapport->reunionNum = (int)$matchs[1];
+            } else {
+                throw new \Exception('Num reunion non trouvé');
+            }
+
+            $trListDom = $tableContainerDom->find('table tr');
+            foreach($trListDom as $trDom) {
+                if($trDom->parent->tag == 'tbody') {
+                    $rapportCourse = clone $rapport;
+                    $this->addCourseMainInformation($trDom, $rapportCourse);
+
+                    try{
+                        $this->pdo->beginTransaction();
+                        $this->crawlRapports(self::DOMAINE . $rapportCourse->url, $rapportCourse);
+                        $this->pdo->commit();
+                    } catch (ContinueException $e){
+                        $this->output->writeln('<info>' . $e->getMessage() . '</info>');
+                    } catch (\Exception $e) {
+                        $this->pdo->rollBack();
+                        throw $e;
+                    }
+                }
+            }
+        }
     }
 
     protected function crawlRapports($url, &$rapport)
