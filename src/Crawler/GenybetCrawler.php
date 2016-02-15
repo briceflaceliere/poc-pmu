@@ -57,7 +57,6 @@ class GenybetCrawler extends AbstractCrawler
                             $this->crawlRapports(self::DOMAINE . $rapportCourse->url, $rapportCourse);
                         } catch (ContinueException $e){
                             $this->output->writeln('<info>' . $e->getMessage() . '</info>');
-                            exit();
                         }
                     }
                 }
