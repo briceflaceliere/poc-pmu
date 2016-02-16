@@ -234,7 +234,7 @@ class TestAlgoCommand extends Command
                               pmu_depense,
                               pmu_cote,
                               pmu_gain,
-                              pmu_benef,
+                              pmu_benef
                             )
                             VALUES (
                               :algo,
