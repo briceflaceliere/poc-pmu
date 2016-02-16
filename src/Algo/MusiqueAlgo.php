@@ -42,6 +42,7 @@ class MusiqueAlgo implements AlgoInterface {
         $results = [];
         foreach ($concurrents as $concurrent) {
             $result = new \StdClass();
+            $result->id = $concurrent->pmu_id;
             $result->numero = $concurrent->pmu_numero;
             $result->score = $this->getScore($course, $concurrent);
             $result->cote = $concurrent->pmu_cote;

@@ -65,6 +65,7 @@ class TestAlgoCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+
         $timestart = microtime(true);
 
         //set date
@@ -94,6 +95,10 @@ class TestAlgoCommand extends Command
 
         $interval = new \DateInterval('P1D');
         $daterange = new \DatePeriod($startDate, $interval , $endDate);
+
+        $req = $this->pdo->prepare('REMOVE FROM pmu_test_algo_historique WHERE pmu_algo = :algo');
+        $req->bindParam(':algo', $this->algo->getName());
+        $req->execute();
 
         $this->progress = new ProgressBar($this->output, iterator_count($daterange));
         $this->progress->setFormat(' %current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s% <info>%message%</info>    ');
@@ -191,9 +196,9 @@ class TestAlgoCommand extends Command
                     if ( $gagnant->pmu_cote <= 1 ) {
                         $rapports['winCoursesNullCote']++;
                     }
-                    $this->addToRapport($date, 1, 0, 1, $gagnant->pmu_cote, $rapports);
+                    $this->addToRapport($date, 1, 0, 1, $gagnant->pmu_cote, $course, $gagnant, $algoGagant, $rapports);
                 } else {
-                    $this->addToRapport($date, 0, 1, 1, 0, $rapports);
+                    $this->addToRapport($date, 0, 1, 1, 0, $course, $gagnant, $algoGagant, $rapports);
                 }
             } catch (ContinueException $e) {
                 $rapports['excludeCourses']++;
@@ -205,7 +210,7 @@ class TestAlgoCommand extends Command
 
     }
 
-    protected function addToRapport(\DateTime $date, $gagniant, $perdant, $depense, $gain, &$rapports)
+    protected function addToRapport(\DateTime $date, $gagniant, $perdant, $depense, $gain, &$course, &$gagnant, &$algoGagant, &$rapports)
     {
         $dateDayKey = $date->format('Y-m-d');
         $dateMouthKey = $date->format('Y-m');
@@ -220,6 +225,37 @@ class TestAlgoCommand extends Command
             $rapports[$rapportType][$rapportDate]['depense'] += $depense;
             $rapports[$rapportType][$rapportDate]['gain'] += $gain;
         }
+
+        $req = $this->pdo->prepare('INSERT INTO pmu_test_algo_historique(
+                              pmu_algo,
+                              pmu_course_id,
+                              pmu_course_winner_id,
+                              pmu_algo_winner_id,
+                              pmu_depense,
+                              pmu_cote,
+                              pmu_gain,
+                              pmu_benef,
+                            )
+                            VALUES (
+                              :algo,
+                              :courseId,
+                              :courseWinnerId,
+                              :algoWinnerId,
+                              :depense,
+                              :cote,
+                              :gain,
+                              :benef
+                            )');
+        $benef = $gain - $depense;
+        $req->bindParam(':algo', $this->algo->getName());
+        $req->bindParam(':courseId', $course->pmu_id);
+        $req->bindParam(':courseWinnerId', $gagnant->pmu_id);
+        $req->bindParam(':algoWinnerId', $algoGagant->pmu_id);
+        $req->bindParam(':depense', $depense);
+        $req->bindParam(':cote', $gagnant->cote);
+        $req->bindParam(':gain', $gain);
+        $req->bindParam(':benef', $benef);
+        $req->execute();
     }
 
 

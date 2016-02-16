@@ -116,6 +116,42 @@ CREATE TABLE IF NOT EXISTS `pmu`.`pmu_concurrent` (
 ENGINE = InnoDB;
 
 
+-- -----------------------------------------------------
+-- Table `pmu`.`pmu_test_algo_historique`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `pmu`.`pmu_test_algo_historique` (
+  `pmu_id` INT NOT NULL AUTO_INCREMENT,
+  `pmu_algo` VARCHAR(255) NOT NULL,
+  `pmu_course_id` INT UNSIGNED NOT NULL,
+  `pmu_course_winner_id` INT UNSIGNED NULL,
+  `pmu_algo_winner_id` INT UNSIGNED NULL,
+  `pmu_depense` FLOAT NOT NULL,
+  `pmu_cote` FLOAT NOT NULL,
+  `pmu_gain` FLOAT NOT NULL,
+  `pmu_benef` FLOAT NOT NULL,
+  PRIMARY KEY (`pmu_id`),
+  INDEX `idx_algo_type` (`pmu_algo` ASC),
+  INDEX `fk_pmu_test_algo_historique_1_idx` (`pmu_course_id` ASC),
+  INDEX `fk_pmu_test_algo_historique_2_idx` (`pmu_course_winner_id` ASC),
+  INDEX `fk_pmu_test_algo_historique_3_idx` (`pmu_algo_winner_id` ASC),
+  CONSTRAINT `fk_pmu_test_algo_historique_1`
+    FOREIGN KEY (`pmu_course_id`)
+    REFERENCES `pmu`.`pmu_course` (`pmu_id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_pmu_test_algo_historique_2`
+    FOREIGN KEY (`pmu_course_winner_id`)
+    REFERENCES `pmu`.`pmu_concurrent` (`pmu_id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_pmu_test_algo_historique_3`
+    FOREIGN KEY (`pmu_algo_winner_id`)
+    REFERENCES `pmu`.`pmu_concurrent` (`pmu_id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
 SET SQL_MODE=@OLD_SQL_MODE;
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
