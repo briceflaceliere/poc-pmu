@@ -164,6 +164,21 @@ abstract class AbstractCrawler
         return ($count > 0);
     }
 
+    protected function getCourseId(&$rapport)
+    {
+        $req = $this->pdo->prepare('SELECT pmu_id
+                            FROM pmu_course
+                            WHERE pmu_date = :dateCourse
+                            AND pmu_course_num = :courseNum
+                            AND pmu_reunion_num = :reunionNum');
+        $req->bindParam(':dateCourse', $rapport->date->format('Y-m-d'));
+        $req->bindParam(':courseNum', $rapport->courseNum);
+        $req->bindParam(':reunionNum', $rapport->reunionNum);
+        $req->execute();
+
+        return $req->fetchColumn();
+    }
+
     protected function saveRapport(&$rapport)
     {
         $req = $this->pdo->prepare('INSERT INTO pmu_course(

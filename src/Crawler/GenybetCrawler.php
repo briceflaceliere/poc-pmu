@@ -216,7 +216,14 @@ class GenybetCrawler extends AbstractCrawler
         $resultatTrListDom = $dom->find('.w55', 0)->find('tr');
         foreach ($resultatTrListDom as $resultatTrDom) {
             if($resultatTrDom->parent->tag == 'tbody') {
-                $position = strtolower(substr(trim($resultatTrDom->children(0)->innertext), 0, 1));
+                $positionText = trim($resultatTrDom->children(0)->innertext);
+                if (preg_match('/([0-9]+)/', $positionText, $matchs)) {
+                    $position = $matchs[1];
+                } else {
+                    $position = strtolower(substr($positionText, 0, 1));
+                }
+
+
                 $numero = (int)trim($resultatTrDom->children(1)->innertext);
 
                 $rapport->concurrents[$numero]->position = $position;
