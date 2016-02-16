@@ -248,7 +248,7 @@ class TestAlgoCommand extends Command
         $req->bindParam(':algo', $this->algo->getName());
         $req->bindParam(':courseId', $course->pmu_id);
         $req->bindParam(':courseWinnerId', $gagnant->pmu_id);
-        $req->bindParam(':algoWinnerId', $algoGagant->pmu_id);
+        $req->bindParam(':algoWinnerId', $algoGagant->id);
         $req->bindParam(':depense', $depense);
         $req->bindParam(':gain', $gain);
         $req->bindParam(':benef', $benef);
