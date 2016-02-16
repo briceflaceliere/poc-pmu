@@ -96,7 +96,7 @@ class TestAlgoCommand extends Command
         $interval = new \DateInterval('P1D');
         $daterange = new \DatePeriod($startDate, $interval , $endDate);
 
-        $req = $this->pdo->prepare('REMOVE FROM pmu_test_algo_historique WHERE pmu_algo = :algo');
+        $req = $this->pdo->prepare('DELETE FROM pmu_test_algo_historique WHERE pmu_algo = :algo');
         $req->bindParam(':algo', $this->algo->getName());
         $req->execute();
 
