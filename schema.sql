@@ -126,7 +126,6 @@ CREATE TABLE IF NOT EXISTS `pmu`.`pmu_test_algo_historique` (
   `pmu_course_winner_id` INT UNSIGNED NULL,
   `pmu_algo_winner_id` INT UNSIGNED NULL,
   `pmu_depense` FLOAT NOT NULL,
-  `pmu_cote` FLOAT NOT NULL,
   `pmu_gain` FLOAT NOT NULL,
   `pmu_benef` FLOAT NOT NULL,
   PRIMARY KEY (`pmu_id`),
@@ -134,6 +133,7 @@ CREATE TABLE IF NOT EXISTS `pmu`.`pmu_test_algo_historique` (
   INDEX `fk_pmu_test_algo_historique_1_idx` (`pmu_course_id` ASC),
   INDEX `fk_pmu_test_algo_historique_2_idx` (`pmu_course_winner_id` ASC),
   INDEX `fk_pmu_test_algo_historique_3_idx` (`pmu_algo_winner_id` ASC),
+  UNIQUE INDEX `idx_algo_course_uniq` (`pmu_algo` ASC, `pmu_course_id` ASC),
   CONSTRAINT `fk_pmu_test_algo_historique_1`
     FOREIGN KEY (`pmu_course_id`)
     REFERENCES `pmu`.`pmu_course` (`pmu_id`)

@@ -232,7 +232,6 @@ class TestAlgoCommand extends Command
                               pmu_course_winner_id,
                               pmu_algo_winner_id,
                               pmu_depense,
-                              pmu_cote,
                               pmu_gain,
                               pmu_benef
                             )
@@ -242,7 +241,6 @@ class TestAlgoCommand extends Command
                               :courseWinnerId,
                               :algoWinnerId,
                               :depense,
-                              :cote,
                               :gain,
                               :benef
                             )');
@@ -252,7 +250,6 @@ class TestAlgoCommand extends Command
         $req->bindParam(':courseWinnerId', $gagnant->pmu_id);
         $req->bindParam(':algoWinnerId', $algoGagant->pmu_id);
         $req->bindParam(':depense', $depense);
-        $req->bindParam(':cote', $gagnant->cote);
         $req->bindParam(':gain', $gain);
         $req->bindParam(':benef', $benef);
         $req->execute();
