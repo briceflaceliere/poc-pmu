@@ -52,7 +52,10 @@ class TestAlgoCommand extends Command
             ->setName('test:algo:'.$this->algo->getName())
             ->setDescription('Crawl result of turf')
             ->addArgument('startDate', InputArgument::OPTIONAL, 'start date', '2014-01-01')
-            ->addArgument('endDate', InputArgument::OPTIONAL, 'end date', null);
+            ->addArgument('endDate', InputArgument::OPTIONAL, 'end date', null)
+            ->addOption('courseAditionnalWhere', null, InputOption::VALUE_OPTIONAL, 'Aditional sql where', null)
+            ->addOption('concurrentAditionnalWhere', null, InputOption::VALUE_OPTIONAL, 'Aditional concurrent sql where', null)
+            ->addOption('output-year', null, InputOption::VALUE_NONE, 'Ouput only result by year', null);
     }
 
     protected function initialize(InputInterface $input, OutputInterface $output)
@@ -123,7 +126,8 @@ class TestAlgoCommand extends Command
     {
         foreach ($rapports as $type => $data) {
             $rows = [];
-            if (in_array($type, ['M', 'D', 'Y'])) {
+            $reportShow = $this->input->getOption('output-year') ?  ['Y'] :  ['M', 'D', 'Y'];
+            if (in_array($type, $reportShow)) {
                 foreach ($data as $date => $rapport) {
                     $pourcentageVictoires = round(($rapport['ganiant'] / ($rapport['ganiant'] + $rapport['perdant'])) * 100, 2);
                     $benef = round($rapport['gain'] - $rapport['depense'], 2);
@@ -153,7 +157,8 @@ class TestAlgoCommand extends Command
 
     protected function testAlgo(\DateTime $date, &$rapports)
     {
-        $req = $this->pdo->prepare('SELECT * FROM pmu_course WHERE pmu_date = :date');
+        $additionalWhere = $this->input->getOption('courseAditionnalWhere') ? 'AND (' . $this->input->getOption('courseAditionnalWhere') . ')' : '';
+        $req = $this->pdo->prepare('SELECT * FROM pmu_course WHERE pmu_date = :date ' . $additionalWhere);
         $req->bindParam(':date', $date->format('Y-m-d'));
         $req->execute();
 
@@ -164,7 +169,8 @@ class TestAlgoCommand extends Command
             $this->progress->setMessage($date->format('Y-m-d') . ' R' . $course->pmu_reunion_num . 'C' . $course->pmu_course_num);
             $this->progress->display();
 
-            $req = $this->pdo->prepare('SELECT * FROM pmu_concurrent WHERE pmu_course_id = :courseId ORDER BY pmu_position ASC');
+            $additionalWhere = $this->input->getOption('concurrentAditionnalWhere') ? 'AND (' . $this->input->getOption('concurrentAditionnalWhere') . ')' : '';
+            $req = $this->pdo->prepare('SELECT * FROM pmu_concurrent WHERE pmu_course_id = :courseId '.$additionalWhere.' ORDER BY pmu_position ASC');
             $req->bindParam(':courseId', $course->pmu_id);
             $req->execute();
 
