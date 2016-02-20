@@ -4,9 +4,51 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "hash": "029f88c48a7e5a858661437ed3d61e7e",
-    "content-hash": "14cfb58463b25603d30e7da2aae090c0",
+    "hash": "1e245f5477cd8077be108dc787cb2ca2",
+    "content-hash": "0c8b4eabecd9f923996d705725bc76a4",
     "packages": [
+        {
+            "name": "panique/pdo-debug",
+            "version": "0.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/panique/pdo-debug.git",
+                "reference": "1a07fed45fab32d0b21364b92657faffdd72320f"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/panique/pdo-debug/zipball/1a07fed45fab32d0b21364b92657faffdd72320f",
+                "reference": "1a07fed45fab32d0b21364b92657faffdd72320f",
+                "shasum": ""
+            },
+            "type": "library",
+            "autoload": {
+                "files": [
+                    "pdo-debug.php"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Panique",
+                    "role": "Developer"
+                }
+            ],
+            "description": "A super-simple function that returns the full SQL query from your PDO statements",
+            "homepage": "https://github.com/panique/pdo-debug",
+            "keywords": [
+                "debug",
+                "debugger",
+                "log",
+                "logger",
+                "pdo",
+                "sql"
+            ],
+            "time": "2014-11-28 08:13:36"
+        },
         {
             "name": "sunra/php-simple-html-dom-parser",
             "version": "v1.5.0",

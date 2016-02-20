@@ -11,12 +11,12 @@ namespace Pmu\Algo;
 
 use Pmu\Command\ContinueException;
 
-class CoteAlgo implements AlgoInterface {
+class CoteAlgoV2 implements AlgoInterface {
 
 
     public function getName()
     {
-        return 'cote';
+        return 'cote-v2';
     }
 
     public function byNumero($course, $concurrents)

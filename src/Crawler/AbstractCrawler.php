@@ -44,13 +44,13 @@ abstract class AbstractCrawler
         $this->pdo = PdoFactory::GetConnection();
     }
 
-    protected function searchOrCreateCheval($name)
+    protected function searchOrCreateCheval($name, $sexe, $race)
     {
-        $name = strtolower($name);
+        $name = strtoupper($name);
 
-        $req = $this->pdo->prepare('SELECT pmu_id
-                            FROM pmu_cheval
-                            WHERE pmu_name = :name
+        $req = $this->pdo->prepare('SELECT name
+                            FROM cheval
+                            WHERE name = :name
                             LIMIT 1');
         $req->bindParam(':name', $name);
         $req->execute();
@@ -61,207 +61,93 @@ abstract class AbstractCrawler
             if ($this->output->isVerbose()) {
                 $this->output->writeln('<info>Create new cheval "' . $name . '"</info>');
             }
-            $req = $this->pdo->prepare('INSERT INTO pmu_cheval (pmu_name) VALUES (:name)');
+            $req = $this->pdo->prepare('INSERT INTO cheval (name, sexe, race) VALUES (:name, :sexe, :race)');
             $req->bindParam(':name', $name);
+            $req->bindParam(':sexe', $sexe);
+            $req->bindParam(':race', $race);
             $req->execute();
-            $id = $this->pdo->lastInsertId();
-        }
-
-        return (int)$id;
-    }
-
-    protected function searchOrCreateEntraineur($name)
-    {
-        $name = strtolower($name);
-
-        $req = $this->pdo->prepare('SELECT pmu_id
-                            FROM pmu_entraineur
-                            WHERE pmu_name = :name
-                            LIMIT 1');
-        $req->bindParam(':name', $name);
-        $req->execute();
-        $id = $req->fetchColumn();
-
-        if (!$id) {
-            // not found create new entraineur
-            if ($this->output->isVerbose()) {
-                $this->output->writeln('<info>Create new entraineur "' . $name . '"</info>');
-            }
-            $req = $this->pdo->prepare('INSERT INTO pmu_entraineur (pmu_name) VALUES (:name)');
-            $req->bindParam(':name', $name);
-            $req->execute();
-            $id = $this->pdo->lastInsertId();
-        }
-
-        return (int)$id;
-    }
-
-    protected function searchOrCreateJockey($name)
-    {
-        $name = strtolower($name);
-
-        $req = $this->pdo->prepare('SELECT pmu_id
-                            FROM pmu_jockey
-                            WHERE pmu_name = :name
-                            LIMIT 1');
-        $req->bindParam(':name', $name);
-        $req->execute();
-        $id = $req->fetchColumn();
-
-        if (!$id) {
-            // not found create new jockey
-            if ($this->output->isVerbose()) {
-                $this->output->writeln('<info>Create new jockey "' . $name . '"</info>');
-            }
-            $req = $this->pdo->prepare('INSERT INTO pmu_jockey (pmu_name) VALUES (:name)');
-            $req->bindParam(':name', $name);
-            $req->execute();
-            $id = $this->pdo->lastInsertId();
-        }
-
-        return (int)$id;
-    }
-
-    protected function searchOrCreateHyppodrome($name)
-    {
-        $name = strtolower($name);
-
-        $req = $this->pdo->prepare('SELECT pmu_id
-                            FROM pmu_hyppodrome
-                            WHERE pmu_name = :name
-                            LIMIT 1');
-        $req->bindParam(':name', $name);
-        $req->execute();
-        $id = $req->fetchColumn();
-
-        if (!$id) {
-            // not found create new hyppodrome
-            if ($this->output->isVerbose()) {
-                $this->output->writeln('<info>Create new hyppodrome "' . $name . '"</info>');
-            }
-            $req = $this->pdo->prepare('INSERT INTO pmu_hyppodrome (pmu_name) VALUES (:name)');
-            $req->bindParam(':name', $name);
-            $req->execute();
-            $id = $this->pdo->lastInsertId();
-        }
-
-        return (int)$id;
-    }
-
-    protected function courseExists(&$rapport)
-    {
-        $req = $this->pdo->prepare('SELECT count(*)
-                            FROM pmu_course
-                            WHERE pmu_date = :dateCourse
-                            AND pmu_course_num = :courseNum
-                            AND pmu_reunion_num = :reunionNum');
-        $req->bindParam(':dateCourse', $rapport->date->format('Y-m-d'));
-        $req->bindParam(':courseNum', $rapport->courseNum);
-        $req->bindParam(':reunionNum', $rapport->reunionNum);
-        $req->execute();
-        $count = $req->fetchColumn();
-
-        return ($count > 0);
-    }
-
-    protected function getCourseId(&$rapport)
-    {
-        $req = $this->pdo->prepare('SELECT pmu_id
-                            FROM pmu_course
-                            WHERE pmu_date = :dateCourse
-                            AND pmu_course_num = :courseNum
-                            AND pmu_reunion_num = :reunionNum');
-        $req->bindParam(':dateCourse', $rapport->date->format('Y-m-d'));
-        $req->bindParam(':courseNum', $rapport->courseNum);
-        $req->bindParam(':reunionNum', $rapport->reunionNum);
-        $req->execute();
-
-        return $req->fetchColumn();
-    }
-
-    protected function saveRapport(&$rapport)
-    {
-        $req = $this->pdo->prepare('INSERT INTO pmu_course(
-                              pmu_course_num,
-                              pmu_reunion_num,
-                              pmu_name,
-                              pmu_date,
-                              pmu_horaire,
-                              pmu_type,
-                              pmu_distance,
-                              pmu_hyppodrome_id
-                            )
-                            VALUES (
-                              :courseNum,
-                              :reunionNum,
-                              :name,
-                              :date,
-                              :horaire,
-                              :type,
-                              :distance,
-                              :hyppodromeId
-                            )');
-        $req->bindParam(':courseNum', $rapport->courseNum);
-        $req->bindParam(':reunionNum', $rapport->reunionNum);
-        $req->bindParam(':name', $rapport->name);
-        $req->bindParam(':date', $rapport->date->format('Y-m-d'));
-        $req->bindParam(':horaire', $rapport->date->format('H:i'));
-        $req->bindParam(':type', $rapport->type);
-        $req->bindParam(':distance', $rapport->distance);
-        $req->bindParam(':hyppodromeId', $rapport->hyppodromeId);
-        $req->execute();
-        $id =  $this->pdo->lastInsertId();
-
-        foreach($rapport->concurrents as $concurent) {
-            $this->createConcurrent($id, $concurent);
+            $id = $name;
         }
 
         return $id;
     }
 
-    protected function createConcurrent($courseId, &$concurrent)
-    {
 
-        $req = $this->pdo->prepare('INSERT INTO pmu_concurrent(
-                              pmu_course_id,
-                              pmu_cheval_id,
-                              pmu_jockey_id,
-                              pmu_entraineur_id,
-                              pmu_numero,
-                              pmu_cote,
-                              pmu_position,
-                              pmu_musique
-                            )
-                            VALUES (
-                              :courseId,
-                              :chevalId,
-                              :jockeyId,
-                              :entraineurId,
-                              :numero,
-                              :cote,
-                              :positionNum,
-                              :musique
-                            )');
-        $req->bindParam(':courseId', $courseId);
-        $req->bindParam(':chevalId', $concurrent->chevalId);
-        $req->bindParam(':jockeyId', $concurrent->jockeyId);
-        $req->bindParam(':entraineurId', $concurrent->entraineurId);
-        $req->bindParam(':numero', $concurrent->numero);
-        $req->bindParam(':positionNum', $concurrent->position);
-        $req->bindParam(':cote', $concurrent->cote);
-        $req->bindParam(':musique', $concurrent->musique);
+    protected function courseExists(\DateTime $date, $courseNum, $reunionNum)
+    {
+        return (bool)$this->getCourseId($date, $courseNum, $reunionNum);
+    }
+
+    protected function getCourseId(\DateTime $date, $courseNum, $reunionNum)
+    {
+        $req = $this->pdo->prepare('SELECT id
+                            FROM course
+                            WHERE date = :dateCourse
+                            AND course_num = :courseNum
+                            AND reunion_num = :reunionNum');
+        $req->bindParam(':dateCourse', $date->format('Y-m-d'));
+        $req->bindParam(':courseNum', $courseNum);
+        $req->bindParam(':reunionNum', $reunionNum);
         $req->execute();
+
+        return $req->fetchColumn();
+    }
+
+    protected function save($table, $collumns)
+    {
+        $keys = array_keys($collumns);
+        $bindKeys = array_map(function($elm) {
+            return ':' . $elm;
+        }, $keys);
+
+        $query = 'INSERT INTO ' . $table . '(' . implode(',', $keys) . ')
+                      VALUES (' . implode(',', $bindKeys) . ')';
+
+        $stm = $this->pdo->prepare($query);
+
+        $params = [];
+        foreach ($collumns as $key => $value) {
+            $params[$key] = $value;
+        }
+        try {
+            $stm->execute($params);
+        } catch (\Exception $e) {
+            var_dump($collumns);
+            throw $e;
+        }
 
         return $this->pdo->lastInsertId();
     }
 
-
-    protected function getDomUrl($url)
+    protected function getCurlResult($url)
     {
+
+        //cache
+        if (!$this->input->getOption('no-cache')) {
+            $query = $this->pdo->prepare('SELECT data FROM curl_cache WHERE cache_key = SHA1(:url)');
+            $query->bindParam(':url', $url);
+            $query->execute();
+
+            if ($data = $query->fetchColumn()) {
+                if ($this->output->isVerbose()) {
+                    $this->output->writeln('<comment>' . $url . ' in cache</comment>');
+                }
+                return $data;
+            }
+        }
+
+        if ($this->output->isVerbose()) {
+            $this->output->writeln('<comment>' . $url . '</comment>');
+        }
+
+        //no cache
         $httpcode = null;
 
         for ($i = 0; $i < 3; $i++) {
+            //usleep(rand(1, 5000));
+
             $ch = curl_init();
+            $ip = rand(1, 150) . '.' . rand(1, 150) . '.' . rand(1, 150) . '.' . rand(1, 150);
             curl_setopt($ch, CURLOPT_URL, $url);
             curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 5.1; rv:31.0) Gecko/20100101 Firefox/31.0');
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
@@ -269,17 +155,18 @@ abstract class AbstractCrawler
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
             curl_setopt($ch, CURLOPT_TIMEOUT, 60);
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, array("REMOTE_ADDR: $ip", "HTTP_X_FORWARDED_FOR: $ip"));
 
             $data = curl_exec($ch);
             $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
 
             if ($httpcode>=200 && $httpcode<300) {
-                $data = HtmlDomParser::str_get_html($data);
-
-                if (!$data) {
-                    throw new CurlException('Parse content from ' . $url . ' error ');
-                }
+                //save cache
+                $query = $this->pdo->prepare('REPLACE INTO curl_cache (cache_key, data) VALUES(SHA1(:url), :data)');
+                $query->bindParam(':url', $url);
+                $query->bindParam(':data', $data);
+                $query->execute();
 
                 return $data;
             }
@@ -289,5 +176,26 @@ abstract class AbstractCrawler
         throw new CurlException('Get content from ' . $url . ' error ' . $httpcode);
     }
 
+    protected function getApiResult($url)
+    {
+        $data = json_decode($this->getCurlResult($url));
 
+        if (!$data) {
+            throw new CurlException('Parse json from ' . $url . ' error ');
+        }
+
+        return $data;
+    }
+
+
+    protected function getDomUrl($url)
+    {
+        $data = HtmlDomParser::str_get_html($this->getCurlResult($url));
+
+        if (!$data) {
+            throw new CurlException('Parse html content from ' . $url . ' error ');
+        }
+
+        return $data;
+    }
 } 

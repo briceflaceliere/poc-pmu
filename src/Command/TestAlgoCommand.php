@@ -158,7 +158,7 @@ class TestAlgoCommand extends Command
     protected function testAlgo(\DateTime $date, &$rapports)
     {
         $additionalWhere = $this->input->getOption('courseAditionnalWhere') ? 'AND (' . $this->input->getOption('courseAditionnalWhere') . ')' : '';
-        $req = $this->pdo->prepare('SELECT * FROM pmu_course WHERE pmu_date = :date ' . $additionalWhere);
+        $req = $this->pdo->prepare('SELECT * FROM pmu_course c WHERE c.pmu_date = :date ' . $additionalWhere);
         $req->bindParam(':date', $date->format('Y-m-d'));
         $req->execute();
 
@@ -170,7 +170,7 @@ class TestAlgoCommand extends Command
             $this->progress->display();
 
             $additionalWhere = $this->input->getOption('concurrentAditionnalWhere') ? 'AND (' . $this->input->getOption('concurrentAditionnalWhere') . ')' : '';
-            $req = $this->pdo->prepare('SELECT * FROM pmu_concurrent WHERE pmu_course_id = :courseId '.$additionalWhere.' ORDER BY pmu_position ASC');
+            $req = $this->pdo->prepare('SELECT * FROM pmu_concurrent c WHERE c.pmu_course_id = :courseId '.$additionalWhere.' ORDER BY c.pmu_position ASC');
             $req->bindParam(':courseId', $course->pmu_id);
             $req->execute();
 
@@ -208,7 +208,9 @@ class TestAlgoCommand extends Command
                 }
             } catch (ContinueException $e) {
                 $rapports['excludeCourses']++;
-                $this->output->writeln("\n".'<comment>' . $e->getMessage() . '</comment>');
+                if ($this->output->isVerbose()) {
+                    $this->output->writeln("\n".'<comment>' . $e->getMessage() . '</comment>');
+                }
             }
         }
 

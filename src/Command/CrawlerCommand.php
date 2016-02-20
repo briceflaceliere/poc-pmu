@@ -8,6 +8,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 class CrawlerCommand extends Command
@@ -48,7 +49,9 @@ class CrawlerCommand extends Command
             ->setName('crawler')
             ->setDescription('Crawl result of turf')
             ->addArgument('startDate', InputArgument::OPTIONAL, 'start date', null)
-            ->addArgument('endDate', InputArgument::OPTIONAL, 'end date', null);
+            ->addArgument('endDate', InputArgument::OPTIONAL, 'end date', null)
+            ->addOption('no-cache', null, InputOption::VALUE_NONE, 'No using cache');
+
     }
 
     protected function initialize(InputInterface $input, OutputInterface $output)
@@ -116,9 +119,9 @@ class CrawlerCommand extends Command
 
     protected function getLastCrawlDate()
     {
-        $req = $this->pdo->prepare('SELECT pmu_date
-                            FROM pmu_course
-                            ORDER BY pmu_date DESC
+        $req = $this->pdo->prepare('SELECT date
+                            FROM course
+                            ORDER BY date DESC
                             LIMIT 1');
         $req->execute();
         $date = $req->fetchColumn();

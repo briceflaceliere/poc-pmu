@@ -83,7 +83,18 @@ class MusiqueV2Algo implements AlgoInterface {
 
     protected function getScore($course, $concurent)
     {
-        $musiques = explode('-', $concurent->pmu_musique);
+        $query = $this->pdo->prepare('SELECT h.pmu_position FROM pmu_concurrent h
+                             LEFT JOIN pmu_course c ON h.pmu_course_id = c.pmu_id
+                             WHERE c.pmu_date < :date
+                             AND h.pmu_cheval_id = :chevalId
+                             ORDER BY c.pmu_date DESC
+                             LIMIT 4');
+        $query->bindParam(':date', $course->pmu_date);
+        $query->bindParam(':chevalId', $concurent->pmu_cheval_id);
+        $query->execute();
+        $musiques = $query->fetchAll(\PDO::FETCH_COLUMN);
+
+        //$musiques = explode('-', $concurent->pmu_musique);
 
         $score = 0;
 
