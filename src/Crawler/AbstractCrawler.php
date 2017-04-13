@@ -44,50 +44,12 @@ abstract class AbstractCrawler
         $this->pdo = PdoFactory::GetConnection();
     }
 
-    protected function searchOrCreateCheval($name, $sexe, $race)
-    {
-        $name = strtoupper($name);
-
-        $req = $this->pdo->prepare('SELECT name
-                            FROM cheval
-                            WHERE name = :name
-                            LIMIT 1');
-        $req->bindParam(':name', $name);
-        $req->execute();
-        $id = $req->fetchColumn();
-
-        if (!$id) {
-            // not found create new cheval
-            if ($this->output->isVerbose()) {
-                $this->output->writeln('<info>Create new cheval "' . $name . '"</info>');
-            }
-            $req = $this->pdo->prepare('INSERT INTO cheval (name, sexe, race) VALUES (:name, :sexe, :race)');
-            $req->bindParam(':name', $name);
-            $req->bindParam(':sexe', $sexe);
-            $req->bindParam(':race', $race);
-            $req->execute();
-            $id = $name;
-        }
-
-        return $id;
-    }
-
-
-    protected function courseExists(\DateTime $date, $courseNum, $reunionNum)
-    {
-        return (bool)$this->getCourseId($date, $courseNum, $reunionNum);
-    }
-
-    protected function getCourseId(\DateTime $date, $courseNum, $reunionNum)
+    protected function matchExists($id)
     {
         $req = $this->pdo->prepare('SELECT id
-                            FROM course
-                            WHERE date = :dateCourse
-                            AND course_num = :courseNum
-                            AND reunion_num = :reunionNum');
-        $req->bindParam(':dateCourse', $date->format('Y-m-d'));
-        $req->bindParam(':courseNum', $courseNum);
-        $req->bindParam(':reunionNum', $reunionNum);
+                            FROM match_item
+                            WHERE id = :id');
+        $req->bindParam(':id', $id);
         $req->execute();
 
         return $req->fetchColumn();

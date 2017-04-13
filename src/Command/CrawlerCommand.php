@@ -13,8 +13,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class CrawlerCommand extends Command
 {
-    const DOMAINE = 'http://www.turfoo.fr';
-    const URI_COURSE_DAY = '/programmes-courses/%s/';
+   /* const DOMAINE = 'http://www.pronosoft.com/fr/parions_sport/resultats_parions_sport.php?date=%s';
+    const URI_COURSE_DAY = '/programmes-courses/%s/';*/
 
     /**
      * @var InputInterface
@@ -120,7 +120,7 @@ class CrawlerCommand extends Command
     protected function getLastCrawlDate()
     {
         $req = $this->pdo->prepare('SELECT date
-                            FROM course
+                            FROM match_item
                             ORDER BY date DESC
                             LIMIT 1');
         $req->execute();

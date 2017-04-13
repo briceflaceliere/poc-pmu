@@ -15,22 +15,66 @@ namespace Pmu\Crawler;
 
 use Pmu\Command\ContinueException;
 
-class PmuCrawler extends AbstractCrawler
+class PronosoftCrawler extends AbstractCrawler
 {
 
-    const DOMAINE = 'https://www.pmu.fr';
-    const URI_COURSE_DAY = '/services/turfInfo/client/1/programme/%s?meteo=true&specialisation=INTERNET';
-    const URI_DETAIL_COURSE = '/services/turfInfo/client/1/programme/%s/R%s/C%s/participants?specialisation=INTERNET';
-    const URI_RAPPORT = '/services/turfInfo/client/1/programme/%s/R%s/C%s/rapports-definitifs?combinaisonEnTableau=true&specialisation=INTERNET';
+    const DOMAINE = 'http://www.pronosoft.com';
+    const URI_RESULT_DAY = '/fr/parions_sport/resultats_parions_sport.php?date=%s';
 
     public function crawlResultByDay(\DateTime $date)
     {
 
         //get list courses
-        $url = sprintf(self::DOMAINE . self::URI_COURSE_DAY, $date->format('dmY'));
-        $result = $this->getApiResult($url);
+        $url = sprintf(self::DOMAINE . self::URI_RESULT_DAY, $date->format('d/m/Y'));
+        $result = $this->getDomUrl($url);
+        $cotesElement = $result->find('#bg_parions .cotes tbody')[1];
 
-        foreach($result->programme->reunions as $reunion) {
+        foreach($cotesElement->find('tr') as $element) {
+            try{
+                $htmlClass = $element->getAttribute('class');
+                if (substr($htmlClass, 0, 4) != 'm-s-') {
+                    continue;
+                }
+
+                list($sport, $compet, $id) = explode(' ', $htmlClass);
+                $sport = substr($sport, 4);
+                $compet = substr($compet, 4);
+                $id = substr($id, 2);
+
+                $this->progress->setMessage($date->format('Y-m-d') . ' MATCH ' . $id);
+                $this->progress->display();
+
+                var_dump($element->getAttribute('class'));
+
+                if ($this->courseExists($id)) {
+                    throw new ContinueException('Le match ' . $id . ' existe deja');
+                }
+
+                $this->save('course', [
+                    'id'                => $id,
+                    'date'              => $date->format('Y-m-d'),
+                    'horaire'           => $horaire,
+                    'course_num'        => $course->numOrdre,
+                    'reunion_num'       => $course->numReunion,
+                    'name'              => $course->libelle,
+                    'type'              => $course->discipline,
+                    'statut'            => $course->statut,
+                    'cat_statut'        => $course->categorieStatut,
+                    'hyppodrome_code'   => $reunion->hippodrome->code,
+                    'corde'             => $course->corde,
+                    'montant_prix'      => $course->montantPrix,
+                    'distance'          => $course->distance,
+                    'cat_particularite' => $course->categorieParticularite,
+                    'cond_sexe'         => $course->conditionSexe,
+                    'conditions'        => $course->conditions,
+                    'nbr_partants'      => $course->nombreDeclaresPartants,
+                    'pays_code'         => $reunion->pays->code,
+                ]);
+            } catch (ContinueException $e){
+                $this->output->writeln('<info>' . $e->getMessage() . '</info>');
+            }
+        }
+        /*foreach($result->programme->reunions as $reunion) {
             foreach($reunion->courses as $course) {
                 try{
                     $this->pdo->beginTransaction();
@@ -90,54 +134,7 @@ class PmuCrawler extends AbstractCrawler
                     throw $e;
                 }
             }
-        }
-    }
-
-    protected function crawlDetailCourse($url, $courseId)
-    {
-        $result = $this->getApiResult($url);
-
-        if (empty($result->participants)) {
-            throw new ContinueException('Aucun concurrents');
-        }
-
-        foreach ($result->participants as $participant) {
-
-
-            $musiqueSplit = str_split($participant->musique);
-
-            $participantId = $this->save('concurrent', [
-                'id'                  => $courseId .  str_pad($participant->numPmu, 2, "0", STR_PAD_LEFT),
-                'course_id'           => $courseId,
-                'numero'              => $participant->numPmu,
-                'position'            => $participant->ordreArrivee,
-                'status'              => $participant->statut,
-                'place_corde'         => $participant->placeCorde,
-                'cheval_name'         => $this->searchOrCreateCheval($participant->nom, $participant->sexe, $participant->race),
-                'cheval_age'          => $participant->age,
-                'jockey_name'         => $participant->driver,
-                'entraineur_name'     => $participant->entraineur,
-                'proprietaire_name'   => $participant->proprietaire,
-                'cote_ref'            => $participant->dernierRapportReference->rapport,
-                'cote_ref_horaire'    => $participant->dernierRapportReference->dateRapport ? substr($participant->dernierRapportReference->dateRapport, 0, 10) : null,
-                'cote_direct'         => $participant->dernierRapportDirect->rapport,
-                'cote_direct_horaire' => $participant->dernierRapportDirect->dateRapport ? substr($participant->dernierRapportDirect->dateRapport, 0, 10) : null,
-                'cheval_inedit'       => (int)$participant->indicateurInedit,
-                'musique_original'    => $participant->musique,
-                'musique_1_pos'       => isset($musiqueSplit[0]) ? $musiqueSplit[0] : null,
-                'musique_1_type'      => isset($musiqueSplit[1]) ? $musiqueSplit[1] : null,
-                'musique_2_pos'       => isset($musiqueSplit[2]) ? $musiqueSplit[2] : null,
-                'musique_2_type'      => isset($musiqueSplit[3]) ? $musiqueSplit[3] : null,
-                'musique_3_pos'       => isset($musiqueSplit[4]) ? $musiqueSplit[4] : null,
-                'musique_3_type'      => isset($musiqueSplit[5]) ? $musiqueSplit[5] : null,
-                'musique_4_pos'       => isset($musiqueSplit[6]) ? $musiqueSplit[6] : null,
-                'musique_4_type'      => isset($musiqueSplit[7]) ? $musiqueSplit[7] : null,
-                'handicap_valeur'     => $participant->handicapValeur,
-                'handicap_poids'      => $participant->handicapPoids,
-                'jument_pleine'       => (int)$participant->jumentPleine,
-                'oeilleres'           => $participant->oeilleres
-            ]);
-        }
+        }*/
     }
 
     protected function crawlRapportCourse($url, $courseId)
