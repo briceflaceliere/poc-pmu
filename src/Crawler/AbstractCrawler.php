@@ -8,6 +8,7 @@
 
 namespace Pmu\Crawler;
 
+use Pmu\Command\ContinueException;
 use Pmu\Command\CurlException;
 use Pmu\Factory\PdoFactory;
 use Symfony\Component\Console\Input\InputInterface;
@@ -83,19 +84,10 @@ abstract class AbstractCrawler
 
     protected function getCurlResult($url)
     {
-
+        $cacheFile = ROOT . '/tmp/' . sha1($url);
         //cache
-        if (!$this->input->getOption('no-cache')) {
-            $query = $this->pdo->prepare('SELECT data FROM curl_cache WHERE cache_key = SHA1(:url)');
-            $query->bindParam(':url', $url);
-            $query->execute();
-
-            if ($data = $query->fetchColumn()) {
-                if ($this->output->isVerbose()) {
-                    $this->output->writeln('<comment>' . $url . ' in cache</comment>');
-                }
-                return $data;
-            }
+        if (!$this->input->getOption('no-cache') && file_exists($cacheFile)) {
+            return file_get_contents($cacheFile);
         }
 
         if ($this->output->isVerbose()) {
@@ -125,10 +117,7 @@ abstract class AbstractCrawler
 
             if ($httpcode>=200 && $httpcode<300) {
                 //save cache
-                $query = $this->pdo->prepare('REPLACE INTO curl_cache (cache_key, data) VALUES(SHA1(:url), :data)');
-                $query->bindParam(':url', $url);
-                $query->bindParam(':data', $data);
-                $query->execute();
+                file_put_contents($cacheFile, $data);
 
                 return $data;
             }
@@ -152,10 +141,18 @@ abstract class AbstractCrawler
 
     protected function getDomUrl($url)
     {
-        $data = HtmlDomParser::str_get_html($this->getCurlResult($url));
+        $body = $this->getCurlResult($url);
+        $data = HtmlDomParser::str_get_html($body);
 
         if (!$data) {
-            throw new CurlException('Parse html content from ' . $url . ' error ');
+
+            $body .= '</div></div></div></body></html>';
+
+            $data = HtmlDomParser::str_get_html($body);
+
+            if (!$data) {
+                throw new ContinueException('Parse html content from ' . $url . ' error ');
+            }
         }
 
         return $data;
